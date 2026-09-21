@@ -5,7 +5,7 @@ import {
   visibleDomainActions,
   lifecycleLabel,
   operationPresentation,
-} from '../src/core.js';
+} from '../static/src/core.js';
 
 const caps = {
   canRenew: true,
@@ -59,7 +59,7 @@ test('ambiguous registrar writes present reconciliation instead of retry', () =>
 import {
   domainAttentionState,
   portfolioHealthSummary,
-} from '../src/core.js';
+} from '../static/src/core.js';
 
 test('domain attention prioritizes payment failure over other states', () => {
   const result = domainAttentionState({
@@ -93,7 +93,7 @@ test('portfolio health summarizes attention without counting healthy domains', (
 import {
   attentionDomains,
   upcomingRenewals,
-} from '../src/core.js';
+} from '../static/src/core.js';
 
 test('attention domains returns only actionable warning or danger states in priority order', () => {
   const domains = [
@@ -121,7 +121,7 @@ import {
   renewalQuote,
   transferReadiness,
   portfolioDomainSummary,
-} from '../src/core.js';
+} from '../static/src/core.js';
 
 test('domain portfolio filters combine query, lifecycle status, and workspace', () => {
   const domains = [
@@ -191,7 +191,7 @@ test('portfolio domain summary separates lifecycle and security state', () => {
   });
 });
 
-import { renewedExpirationDate } from '../src/core.js';
+import { renewedExpirationDate } from '../static/src/core.js';
 
 test('renewed expiration applies the selected renewal period', () => {
   assert.equal(renewedExpirationDate('2027-09-21', 3), '2030-09-21');

@@ -1,15 +1,31 @@
-# Domain Management SaaS — Customer UI Prototype
+# Domain Management SaaS
+
+The repository now contains the production Laravel + Inertia + React + TypeScript foundation at its root. The original UI prototype is preserved under `prototype/` and is reference-only until migration is approved.
+
+## Production foundation
+
+```bash
+composer install
+npm install
+npm run build
+php artisan serve
+```
+
+Authentication is provided by Laravel Breeze. PostgreSQL, Redis, queue, and cache settings are documented in `.env.example`; local rendering does not require live infrastructure until database-backed features are introduced.
+
+## Prototype reference
 
 This package contains two prototype forms of the approved domain registrar SaaS customer UI:
 
-1. **`index.html` zero-install prototype** — the most complete interactive version. Run with any static server and open in a browser.
-2. **`react/` React + Vite handoff** — componentized React reference implementation using the same information architecture and capability rules.
+1. **`prototype/static/` zero-install prototype** — the most complete interactive version.
+2. **`prototype/react/` React + Vite handoff** — componentized React reference implementation.
+3. **`prototype/standalone/` standalone HTML reference**.
 
 ## Quick preview
 
 ```bash
-npm run serve
-# open http://localhost:4173
+cd prototype/static
+# serve with any static server
 ```
 
 The root prototype requires no package installation beyond the included static server command available in this environment. Any ordinary static server works.
@@ -17,7 +33,7 @@ The root prototype requires no package installation beyond the included static s
 ## React version
 
 ```bash
-cd react
+cd prototype/react
 npm install
 npm run dev
 ```
@@ -93,8 +109,8 @@ The customer domain-management surfaces now use the same control-center quality 
 
 ## Tests
 
-The shared capability and registrar-operation logic is covered by Node's built-in test runner:
+The production frontend uses Vitest. The preserved prototype logic is covered by Node's built-in test runner:
 
 ```bash
-npm test
+node --test prototype/tests/*.test.mjs
 ```

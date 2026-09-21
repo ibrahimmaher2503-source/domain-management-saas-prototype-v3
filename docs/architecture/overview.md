@@ -11,7 +11,7 @@ Browser
   -> OnlineNIC API
 ```
 
-The browser owns presentation and user intent only. Laravel owns authentication, authorization, validation, orchestration, persistence, and Inertia responses. The application/domain layer expresses product actions in provider-neutral terms. `RegistrarGateway` is the provider-neutral boundary. `OnlineNicGateway` translates that boundary to OnlineNIC protocol details.
+The browser owns presentation and user intent only. Laravel owns authentication, authorization, validation, orchestration, persistence, and Inertia responses. The application/domain layer expresses product actions in provider-neutral terms. `RegistrarGateway` is the provider-neutral boundary. `OnlineNicGateway` translates that boundary to OnlineNIC protocol details. In v1, customer resources belong directly to the authenticated user.
 
 ## Platform services
 
@@ -22,7 +22,7 @@ Laravel -> PostgreSQL
         -> Scheduler
 ```
 
-PostgreSQL is the system of record for platform, workspace, domain, pricing, order, operation, and audit data. Redis supports queues, locks, and cache where justified. Queue workers handle long-running or asynchronous provider work. The scheduler runs bounded reconciliation, renewal, and notification jobs; it does not bypass authorization or operation records.
+PostgreSQL is the system of record for platform, user, domain, pricing, order, operation, and audit data. Redis supports queues, locks, and cache where justified. Queue workers handle long-running or asynchronous provider work. The scheduler runs bounded reconciliation and renewal jobs; it does not bypass authorization or operation records.
 
 ## Ownership
 

@@ -5,7 +5,7 @@ The intended Inertia React organization is:
 ```text
 resources/js/
   Components/   reusable presentational pieces
-  Layouts/      authenticated and workspace shells
+  Layouts/      authenticated application shells
   Pages/        route-level screens
   lib/          small UI-only helpers
   types/        shared frontend types

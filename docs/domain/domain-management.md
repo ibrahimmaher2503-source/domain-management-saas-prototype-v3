@@ -17,4 +17,4 @@ Expected areas:
 - Activity
 - Advanced / Danger Zone
 
-Capabilities are shown only when the domain's TLD/provider capability data supports them. DNS zone CRUD and DNSSEC remain explicitly out of scope. Transfer lock is a security state, not a lifecycle state. Authorization-code reveal requires re-authentication and must be audited.
+Capabilities are shown only when the domain's TLD/provider capability data supports them. DNS zone CRUD and DNSSEC remain explicitly out of scope. Transfer lock is a security state, not a lifecycle state. Authorization-code reveal requires re-authentication and must be audited. Operational errors stay on their relevant domain, transfer, or SSL detail page; there is no notification inbox in v1.

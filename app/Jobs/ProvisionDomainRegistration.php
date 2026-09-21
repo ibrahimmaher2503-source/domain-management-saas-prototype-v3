@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Domain\Registrar\Contracts\RegistrarGateway;
 use App\Domain\Registrar\DTOs\CheckDomainData;
-use App\Domain\Registrar\DTOs\CreateContactData;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Integrations\OnlineNic\Exceptions\OnlineNicException;
 use App\Integrations\OnlineNic\Exceptions\ProviderAmbiguousResponse;
@@ -49,6 +48,20 @@ final class ProvisionDomainRegistration implements ShouldQueue
             return;
         }
 
+        $contactIds = [
+            'registrant' => trim((string) config('onlinenic.registrant_contact_id')),
+            'administrative' => trim((string) config('onlinenic.admin_contact_id')),
+            'technical' => trim((string) config('onlinenic.tech_contact_id')),
+            'billing' => trim((string) config('onlinenic.billing_contact_id')),
+        ];
+        foreach ($contactIds as $id) {
+            if ($id === '' || strlen($id) > 16) {
+                $order->update(['status' => 'failed', 'provisioning_failure_reason' => 'Registration requires a platform configuration review.']);
+
+                return;
+            }
+        }
+
         try {
             $availability = $registrar->checkDomain(new CheckDomainData($order->domain));
         } catch (OnlineNicException) {
@@ -58,32 +71,6 @@ final class ProvisionDomainRegistration implements ShouldQueue
             $order->update(['status' => 'failed', 'provisioning_failure_reason' => 'Domain became unavailable before registration.']);
 
             return;
-        }
-
-        $contactIds = $order->provider_contact_ids ?? [];
-        foreach (['registrant', 'administrative', 'technical', 'billing'] as $role) {
-            if (isset($contactIds[$role])) {
-                continue;
-            }
-            $operation = $this->operation($order, 'create_contact_'.$role, $transactions->generate(), ['domain' => $order->domain, 'role' => $role]);
-            try {
-                $result = $registrar->createContact($this->contact($order, $role), $operation->cltrid);
-            } catch (ProviderAmbiguousResponse $exception) {
-                $operation->update(['status' => 'ambiguous', 'provider_message' => 'Provider response was ambiguous.']);
-
-                return;
-            } catch (OnlineNicException $exception) {
-                $operation->update(['status' => 'failed', 'provider_code' => $exception->providerCode, 'provider_message' => $exception->providerMessage ?: 'Provider rejected contact creation.', 'completed_at' => now()]);
-                $order->update(['status' => 'failed', 'provisioning_failure_reason' => 'Domain registration could not create the required contacts.']);
-
-                return;
-            }
-            DB::transaction(function () use ($operation, $result, &$contactIds, $role, $order): void {
-                $contactIds[$role] = $result->contactId;
-                $order->update(['provider_contact_ids' => $contactIds]);
-                $operation->update(['status' => 'completed', 'svtrid' => $result->svtrid, 'provider_code' => $result->providerCode, 'provider_message' => $result->providerMessage, 'completed_at' => now(), 'provider_metadata' => ['contact_id' => $result->contactId]]);
-            });
-            $order->refresh();
         }
 
         $password = $order->domain_password ?: bin2hex(random_bytes(8));
@@ -124,13 +111,6 @@ final class ProvisionDomainRegistration implements ShouldQueue
     private function operation(Order $order, string $name, string $cltrid, array $metadata): RegistrarOperation
     {
         return $order->registrarOperations()->create(['user_id' => $order->user_id, 'provider' => 'onlinenic', 'operation' => $name, 'cltrid' => $cltrid, 'status' => 'pending', 'safe_request_metadata' => $metadata, 'started_at' => now()]);
-    }
-
-    private function contact(Order $order, string $role): CreateContactData
-    {
-        $data = (array) data_get($order->registration_data, $role, []);
-
-        return new CreateContactData((string) ($data['name'] ?? ''), (string) ($data['organization'] ?? ''), strtoupper((string) ($data['country'] ?? '')), (string) ($data['province'] ?? ''), (string) ($data['city'] ?? ''), (string) ($data['street'] ?? ''), (string) ($data['postal_code'] ?? ''), (string) ($data['voice'] ?? ''), (string) ($data['fax'] ?? ''), (string) ($data['email'] ?? ''), bin2hex(random_bytes(4)));
     }
 
     private function date(?string $value): ?string

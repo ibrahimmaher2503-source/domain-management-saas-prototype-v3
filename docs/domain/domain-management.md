@@ -1,20 +1,7 @@
 # Domain Management
 
-The post-purchase Domain Control Center is the single customer surface for every capability supported by the platform. Customers should not need to enter an upstream registrar panel for supported operations.
+The Domain Control Center is the customer's view of a domain entitlement owned in our SaaS account. Registrar contacts are controlled by the platform owner in v1 and are not customer-facing.
 
-Expected areas:
+Planned customer areas: Overview, Nameservers, DNS, Security, Renewal, Transfers, SSL, Billing, and Activity. Only read-only overview and nameserver information are connected now. DNS is reserved as a distinct area for future zone-record management (A, AAAA, CNAME, MX, TXT, SRV, CAA) through a provider-neutral `DnsProvider`; no authoritative DNS provider has been selected. OnlineNIC `UpdateDomainDns` assigns nameservers and is not DNS record CRUD.
 
-- Overview
-- Renewal
-- Contacts
-- Nameservers
-- Child Nameservers / Glue
-- Privacy
-- Security
-- Transfers
-- SSL
-- Billing
-- Activity
-- Advanced / Danger Zone
-
-Capabilities are shown only when the domain's TLD/provider capability data supports them. DNS zone CRUD and DNSSEC remain explicitly out of scope. Transfer lock is a security state, not a lifecycle state. Authorization-code reveal requires re-authentication and must be audited. Operational errors stay on their relevant domain, transfer, or SSL detail page; there is no notification inbox in v1.
+Future capabilities must be gated by actual provider/TLD support. Transfer lock is a security state, not a lifecycle state. Operational errors remain on their relevant detail pages; there is no notification inbox in v1.

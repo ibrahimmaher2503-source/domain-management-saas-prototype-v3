@@ -3,10 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Registrar\Contracts\RegistrarGateway;
-use App\Domain\Registrar\DTOs\CheckContactData;
 use App\Domain\Registrar\DTOs\CheckDomainData;
-use App\Domain\Registrar\DTOs\ContactResult;
-use App\Domain\Registrar\DTOs\CreateContactData;
 use App\Domain\Registrar\DTOs\DomainAvailability;
 use App\Domain\Registrar\DTOs\DomainInfo;
 use App\Domain\Registrar\DTOs\DomainPrice;
@@ -29,142 +26,112 @@ final class ProvisionDomainRegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_paid_order_creates_contacts_domain_and_completes_once(): void
+    protected function setUp(): void
     {
-        [$user, $order] = $this->paidOrder();
-        $fake = new ProvisioningFakeRegistrar;
-        $this->app->instance(RegistrarGateway::class, $fake);
+        parent::setUp();
+        config([
+            'onlinenic.registrant_contact_id' => 'platform-r',
+            'onlinenic.admin_contact_id' => 'platform-a',
+            'onlinenic.tech_contact_id' => 'platform-t',
+            'onlinenic.billing_contact_id' => 'platform-b',
+        ]);
+    }
 
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
+    public function test_paid_order_registers_with_platform_ids_once_without_customer_contacts(): void
+    {
+        $order = $this->paidOrder();
+        $fake = new PlatformRegistrarFake;
+
+        $this->runJob($order, $fake);
+        $this->runJob($order, $fake);
 
         $this->assertSame('completed', $order->fresh()->status);
         $this->assertSame(1, Domain::count());
-        $this->assertSame(4, $fake->contactCalls);
         $this->assertSame(1, $fake->domainCalls);
-        $this->assertSame(5, $order->registrarOperations()->where('status', 'completed')->count());
-        $this->assertSame('contact-registrant', $order->fresh()->provider_contact_ids['registrant']);
-        $this->assertStringNotContainsString('contact-registrant', $order->fresh()->getRawOriginal('provider_contact_ids'));
+        $this->assertSame(['registrant' => 'platform-r', 'administrative' => 'platform-a', 'technical' => 'platform-t', 'billing' => 'platform-b'], $fake->registration->contactIds);
+        $this->assertSame(['ns1.example.net', 'ns2.example.net'], $fake->registration->nameservers);
+        $this->assertSame(2, $fake->registration->period);
+        $this->assertSame(0, $fake->registration->domainType);
+        $this->assertSame(16, strlen($fake->registration->password));
+        $this->assertNull($order->fresh()->provider_contact_ids);
         $this->assertNotSame($order->fresh()->domain_password, $order->fresh()->getRawOriginal('domain_password'));
-        $this->assertNull($order->registrarOperations()->first()->safe_request_metadata['password'] ?? null);
+        $this->assertSame(1, $order->registrarOperations()->count());
+        $this->assertStringNotContainsString('platform-r', json_encode($order->registrarOperations()->first()->safe_request_metadata));
+        $this->assertSame('2028-09-22', Domain::firstOrFail()->expires_at->toDateString());
     }
 
-    public function test_unavailable_domain_fails_registration_without_touching_contacts(): void
+    public function test_missing_platform_contact_config_fails_closed_after_payment(): void
     {
-        [, $order] = $this->paidOrder();
-        $fake = new ProvisioningFakeRegistrar(available: false);
-        $this->app->instance(RegistrarGateway::class, $fake);
+        config(['onlinenic.tech_contact_id' => null]);
+        $order = $this->paidOrder();
+        $fake = new PlatformRegistrarFake;
 
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
+        $this->runJob($order, $fake);
 
         $this->assertSame('failed', $order->fresh()->status);
-        $this->assertSame('Domain became unavailable before registration.', $order->fresh()->provisioning_failure_reason);
-        $this->assertSame(0, $fake->contactCalls);
+        $this->assertSame('Registration requires a platform configuration review.', $order->fresh()->provisioning_failure_reason);
+        $this->assertSame(0, $fake->domainCalls);
+        $this->assertSame(0, $order->registrarOperations()->count());
+        $this->assertSame('paid', Payment::firstOrFail()->status);
+    }
+
+    public function test_same_platform_id_can_fill_all_roles(): void
+    {
+        config(['onlinenic.registrant_contact_id' => 'shared', 'onlinenic.admin_contact_id' => 'shared', 'onlinenic.tech_contact_id' => 'shared', 'onlinenic.billing_contact_id' => 'shared']);
+        $order = $this->paidOrder();
+        $fake = new PlatformRegistrarFake;
+
+        $this->runJob($order, $fake);
+
+        $this->assertSame(['registrant' => 'shared', 'administrative' => 'shared', 'technical' => 'shared', 'billing' => 'shared'], $fake->registration->contactIds);
+    }
+
+    public function test_legacy_order_contact_ids_are_ignored(): void
+    {
+        $order = $this->paidOrder();
+        $order->update(['provider_contact_ids' => ['registrant' => 'legacy-customer-id']]);
+        $fake = new PlatformRegistrarFake;
+
+        $this->runJob($order, $fake);
+
+        $this->assertSame('platform-r', $fake->registration->contactIds['registrant']);
+        $this->assertSame('legacy-customer-id', $order->fresh()->provider_contact_ids['registrant']);
+    }
+
+    public function test_unavailable_domain_does_not_register(): void
+    {
+        $order = $this->paidOrder();
+        $fake = new PlatformRegistrarFake(available: false);
+
+        $this->runJob($order, $fake);
+
+        $this->assertSame('failed', $order->fresh()->status);
         $this->assertSame(0, $fake->domainCalls);
         $this->assertSame('paid', Payment::firstOrFail()->status);
     }
 
-    public function test_ambiguous_create_domain_is_not_retried(): void
+    public function test_ambiguous_domain_is_not_retried_and_can_be_reconciled_by_read(): void
     {
-        [, $order] = $this->paidOrder();
-        $fake = new ProvisioningFakeRegistrar(domainAmbiguous: true);
-        $this->app->instance(RegistrarGateway::class, $fake);
+        $order = $this->paidOrder();
+        $fake = new PlatformRegistrarFake(domainAmbiguous: true);
+        $this->runJob($order, $fake);
+        $this->runJob($order, $fake);
+        $operation = $order->registrarOperations()->firstOrFail();
 
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
-
-        $this->assertSame('provisioning', $order->fresh()->status);
-        $this->assertSame('ambiguous', $order->registrarOperations()->where('operation', 'domain_registration')->value('status'));
+        $this->assertSame('ambiguous', $operation->status);
         $this->assertSame(1, $fake->domainCalls);
-    }
-
-    public function test_clear_domain_rejection_fails_order_but_keeps_payment_paid(): void
-    {
-        [, $order] = $this->paidOrder();
-        $fake = new ProvisioningFakeRegistrar(domainRejected: true);
-        $this->app->instance(RegistrarGateway::class, $fake);
-
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
-
-        $this->assertSame('failed', $order->fresh()->status);
-        $this->assertSame('paid', Payment::firstOrFail()->status);
-        $this->assertSame('failed', $order->registrarOperations()->where('operation', 'domain_registration')->value('status'));
-    }
-
-    public function test_non_com_paid_order_does_not_contact_registrar(): void
-    {
-        [, $order] = $this->paidOrder();
-        $order->update(['domain' => 'example.net', 'tld' => 'net']);
-        $fake = new ProvisioningFakeRegistrar;
-
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
-
-        $this->assertSame('paid', $order->fresh()->status);
-        $this->assertSame(0, $fake->contactCalls);
-        $this->assertSame(0, $fake->domainCalls);
-    }
-
-    public function test_unpaid_order_never_contacts_registrar(): void
-    {
-        [, $order] = $this->paidOrder();
-        $order->payments()->delete();
-        $fake = new ProvisioningFakeRegistrar;
-
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
-
-        $this->assertSame('paid', $order->fresh()->status);
-        $this->assertSame(0, $fake->contactCalls);
-    }
-
-    public function test_ambiguous_contact_is_not_retried(): void
-    {
-        [, $order] = $this->paidOrder();
-        $fake = new ProvisioningFakeRegistrar(contactAmbiguous: true);
-
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
-
-        $this->assertSame(1, $fake->contactCalls);
-        $this->assertSame(0, $fake->domainCalls);
-        $this->assertSame('ambiguous', $order->registrarOperations()->first()->status);
-        $this->assertSame('provisioning', $order->fresh()->status);
-    }
-
-    public function test_clear_contact_rejection_keeps_payment_paid(): void
-    {
-        [, $order] = $this->paidOrder();
-        $fake = new ProvisioningFakeRegistrar(contactRejected: true);
-
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
-
-        $this->assertSame('failed', $order->fresh()->status);
-        $this->assertSame('paid', Payment::firstOrFail()->status);
-        $this->assertSame(0, $fake->domainCalls);
-        $this->assertSame('failed', $order->registrarOperations()->first()->status);
-    }
-
-    public function test_ambiguous_domain_reconciliation_uses_info_without_repeating_registration(): void
-    {
-        [, $order] = $this->paidOrder();
-        $fake = new ProvisioningFakeRegistrar(domainAmbiguous: true);
-
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
-        $operation = $order->registrarOperations()->where('operation', 'domain_registration')->firstOrFail();
         (new ReconcileDomainRegistration($operation->id))->handle($fake);
-
-        $this->assertSame(1, $fake->domainCalls);
         $this->assertSame(1, $fake->infoCalls);
-        $this->assertSame('completed', $operation->fresh()->status);
         $this->assertSame('completed', $order->fresh()->status);
         $this->assertSame(1, Domain::count());
     }
 
-    public function test_unresolved_reconciliation_keeps_registration_ambiguous(): void
+    public function test_unresolved_reconciliation_stays_ambiguous(): void
     {
-        [, $order] = $this->paidOrder();
-        $fake = new ProvisioningFakeRegistrar(domainAmbiguous: true, infoRejected: true);
-        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
-        $operation = $order->registrarOperations()->where('operation', 'domain_registration')->firstOrFail();
+        $order = $this->paidOrder();
+        $fake = new PlatformRegistrarFake(domainAmbiguous: true, infoRejected: true);
+        $this->runJob($order, $fake);
+        $operation = $order->registrarOperations()->firstOrFail();
 
         (new ReconcileDomainRegistration($operation->id))->handle($fake);
 
@@ -173,27 +140,55 @@ final class ProvisionDomainRegistrationTest extends TestCase
         $this->assertSame(0, Domain::count());
     }
 
-    /** @return array{0: User, 1: Order} */
-    private function paidOrder(): array
+    public function test_clear_rejection_keeps_payment_paid(): void
+    {
+        $order = $this->paidOrder();
+        $fake = new PlatformRegistrarFake(domainRejected: true);
+
+        $this->runJob($order, $fake);
+
+        $this->assertSame('failed', $order->fresh()->status);
+        $this->assertSame('failed', $order->registrarOperations()->first()->status);
+        $this->assertSame('paid', Payment::firstOrFail()->status);
+    }
+
+    public function test_unpaid_and_non_com_orders_do_not_register(): void
+    {
+        $order = $this->paidOrder();
+        $fake = new PlatformRegistrarFake;
+        $order->payments()->delete();
+        $this->runJob($order, $fake);
+        $order->update(['domain' => 'example.net', 'tld' => 'net']);
+        $this->runJob($order, $fake);
+
+        $this->assertSame(0, $fake->domainCalls);
+        $this->assertSame('paid', $order->fresh()->status);
+    }
+
+    private function runJob(Order $order, PlatformRegistrarFake $fake): void
+    {
+        (new ProvisionDomainRegistration($order->id))->handle($fake, app(OnlineNicTransactionIdGenerator::class));
+    }
+
+    private function paidOrder(): Order
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
-        $contact = ['name' => 'Alice Example', 'organization' => 'Example Inc', 'country' => 'EG', 'province' => 'Cairo', 'city' => 'Cairo', 'street' => '1 Main Street', 'postal_code' => '11511', 'voice' => '+201000000000', 'fax' => '', 'email' => 'alice@example.com'];
-        $order = Order::create(['user_id' => $user->id, 'type' => 'domain_registration', 'status' => 'paid', 'domain' => 'example.com', 'tld' => 'com', 'registration_period' => 2, 'provider' => 'onlinenic', 'provider_cost' => '8.59', 'customer_price' => '10.31', 'currency' => 'EGP', 'premium' => false, 'registration_data' => ['registrant' => $contact, 'administrative' => $contact, 'technical' => $contact, 'billing' => $contact], 'nameservers' => ['ns1.example.net', 'ns2.example.net']]);
+        $order = Order::create(['user_id' => $user->id, 'type' => 'domain_registration', 'status' => 'paid', 'domain' => 'example.com', 'tld' => 'com', 'registration_period' => 2, 'provider' => 'onlinenic', 'provider_cost' => '8.59', 'customer_price' => '10.31', 'currency' => 'EGP', 'premium' => false, 'registration_data' => ['registrant' => ['name' => 'Legacy Customer']], 'nameservers' => ['ns1.example.net', 'ns2.example.net']]);
         Payment::create(['user_id' => $user->id, 'order_id' => $order->id, 'provider' => 'paymob', 'status' => 'paid', 'amount' => '10.31', 'currency' => 'EGP', 'provider_reference' => 'order-'.$order->id]);
 
-        return [$user, $order];
+        return $order;
     }
 }
 
-final class ProvisioningFakeRegistrar implements RegistrarGateway
+final class PlatformRegistrarFake implements RegistrarGateway
 {
-    public int $contactCalls = 0;
-
     public int $domainCalls = 0;
 
     public int $infoCalls = 0;
 
-    public function __construct(private bool $available = true, private bool $domainAmbiguous = false, private bool $domainRejected = false, private bool $contactAmbiguous = false, private bool $infoRejected = false, private bool $contactRejected = false) {}
+    public ?DomainRegistrationData $registration = null;
+
+    public function __construct(private bool $available = true, private bool $domainAmbiguous = false, private bool $domainRejected = false, private bool $infoRejected = false) {}
 
     public function checkDomain(CheckDomainData $data): DomainAvailability
     {
@@ -205,30 +200,14 @@ final class ProvisioningFakeRegistrar implements RegistrarGateway
         return new DomainPrice($query->domain, '8.59', $query->period);
     }
 
-    public function createContact(CreateContactData $data, string $cltrid): ContactResult
-    {
-        $this->contactCalls++;
-        if ($this->contactAmbiguous) {
-            throw new ProviderAmbiguousResponse('ambiguous');
-        }
-        if ($this->contactRejected) {
-            throw new ProviderRejectedOperation('rejected', 2001, 'rejected');
-        }
-
-        return new ContactResult('contact-'.strtolower($data->name === 'Alice Example' ? ($this->contactCalls === 1 ? 'registrant' : (string) $this->contactCalls) : (string) $this->contactCalls), $cltrid, 'srv-'.$cltrid, 1000, 'OK');
-    }
-
-    public function checkContact(CheckContactData $data): bool
-    {
-        return true;
-    }
-
     public function registerDomain(DomainRegistrationData $data, string $cltrid): RegistrationResult
     {
         $this->domainCalls++;
+        $this->registration = $data;
         if ($this->domainAmbiguous) {
             throw new ProviderAmbiguousResponse('ambiguous');
-        } if ($this->domainRejected) {
+        }
+        if ($this->domainRejected) {
             throw new ProviderRejectedOperation('rejected', 2001, 'rejected');
         }
 
@@ -243,5 +222,15 @@ final class ProvisioningFakeRegistrar implements RegistrarGateway
         }
 
         return new DomainInfo($domain, '2026-09-22', '2028-09-22', ['ns1.example.net', 'ns2.example.net'], 'active', 'info', 'srv-info', 1000, 'OK');
+    }
+
+    public function createContact(): never
+    {
+        throw new \LogicException('Customer registrar contacts must not be created.');
+    }
+
+    public function checkContact(): never
+    {
+        throw new \LogicException('Customer registrar contacts must not be checked.');
     }
 }

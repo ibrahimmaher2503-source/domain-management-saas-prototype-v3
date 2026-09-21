@@ -16,7 +16,7 @@ final class OrderController extends Controller
 
         return Inertia::render('Orders/Show', ['order' => [
             'id' => $order->id, 'domain' => $order->domain, 'status' => $order->status, 'registration_period' => $order->registration_period,
-            'customer_price' => $order->customer_price, 'currency' => $order->currency, 'registrant_name' => data_get($order->registration_data, 'registrant.name'),
+            'customer_price' => $order->customer_price, 'currency' => $order->currency,
             'nameservers' => $order->nameservers, 'created_at' => $order->created_at,
             'payment_error' => session('errors')?->first('payment'),
             'provisioning_failure_reason' => $order->provisioning_failure_reason,

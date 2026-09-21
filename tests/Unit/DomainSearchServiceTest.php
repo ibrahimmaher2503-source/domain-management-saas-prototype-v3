@@ -5,10 +5,7 @@ namespace Tests\Unit;
 use App\Domain\Domains\Services\CustomerDomainPricing;
 use App\Domain\Domains\Services\DomainSearchService;
 use App\Domain\Registrar\Contracts\RegistrarGateway;
-use App\Domain\Registrar\DTOs\CheckContactData;
 use App\Domain\Registrar\DTOs\CheckDomainData;
-use App\Domain\Registrar\DTOs\ContactResult;
-use App\Domain\Registrar\DTOs\CreateContactData;
 use App\Domain\Registrar\DTOs\DomainAvailability;
 use App\Domain\Registrar\DTOs\DomainInfo;
 use App\Domain\Registrar\DTOs\DomainPrice;
@@ -81,16 +78,6 @@ final class FakeRegistrarGateway implements RegistrarGateway
     public function getDomainPrice(DomainPriceQuery $query): DomainPrice
     {
         return $this->price ?? throw new InvalidArgumentException('Unexpected price request.');
-    }
-
-    public function createContact(CreateContactData $data, string $cltrid): ContactResult
-    {
-        throw new InvalidArgumentException('Unexpected write.');
-    }
-
-    public function checkContact(CheckContactData $data): bool
-    {
-        throw new InvalidArgumentException('Unexpected check.');
     }
 
     public function registerDomain(DomainRegistrationData $data, string $cltrid): RegistrationResult

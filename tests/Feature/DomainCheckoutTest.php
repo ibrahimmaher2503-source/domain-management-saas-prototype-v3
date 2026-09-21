@@ -3,10 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Registrar\Contracts\RegistrarGateway;
-use App\Domain\Registrar\DTOs\CheckContactData;
 use App\Domain\Registrar\DTOs\CheckDomainData;
-use App\Domain\Registrar\DTOs\ContactResult;
-use App\Domain\Registrar\DTOs\CreateContactData;
 use App\Domain\Registrar\DTOs\DomainAvailability;
 use App\Domain\Registrar\DTOs\DomainInfo;
 use App\Domain\Registrar\DTOs\DomainPrice;
@@ -40,7 +37,10 @@ final class DomainCheckoutTest extends TestCase
         $this->assertSame('8.59', $order->provider_cost);
         $this->assertSame('10.31', $order->customer_price);
         $this->assertSame('EUR', $order->currency);
-        $this->assertSame('Alice', $order->registration_data['registrant']['name']);
+        $this->assertSame('Alice', $order->billing_data['first_name']);
+        $this->assertStringNotContainsString('Alice', $order->getRawOriginal('billing_data'));
+        $this->assertNull($order->registration_data);
+        $this->assertArrayNotHasKey('billing_data', $order->toArray());
     }
 
     public function test_missing_currency_blocks_order(): void
@@ -75,9 +75,9 @@ final class DomainCheckoutTest extends TestCase
 
     private function payload(): array
     {
-        $contact = ['name' => 'Alice', 'organization' => 'Example', 'country' => 'US', 'province' => 'CA', 'city' => 'Los Angeles', 'street' => '1 Main Street', 'postal_code' => '90001', 'voice' => '+1.5555555555', 'fax' => '', 'email' => 'alice@example.com'];
+        $billing = ['first_name' => 'Alice', 'last_name' => 'Example', 'email' => 'alice@example.com', 'phone_number' => '+15555555555', 'country' => 'US', 'city' => 'Los Angeles', 'street' => '1 Main Street', 'state' => 'CA', 'postal_code' => '90001'];
 
-        return ['domain' => 'example.com', 'period' => 1, 'registrant' => $contact, 'administrative' => $contact, 'technical' => $contact, 'billing' => $contact, 'nameservers' => ['ns1.example.net', 'ns2.example.net']];
+        return ['domain' => 'example.com', 'period' => 1, 'payment_billing' => $billing, 'nameservers' => ['ns1.example.net', 'ns2.example.net']];
     }
 }
 
@@ -91,16 +91,6 @@ final class CheckoutFakeRegistrar implements RegistrarGateway
     public function getDomainPrice(DomainPriceQuery $query): DomainPrice
     {
         return new DomainPrice($query->domain, '8.59', $query->period);
-    }
-
-    public function createContact(CreateContactData $data, string $cltrid): ContactResult
-    {
-        throw new \LogicException('Unexpected write.');
-    }
-
-    public function checkContact(CheckContactData $data): bool
-    {
-        throw new \LogicException('Unexpected check.');
     }
 
     public function registerDomain(DomainRegistrationData $data, string $cltrid): RegistrationResult

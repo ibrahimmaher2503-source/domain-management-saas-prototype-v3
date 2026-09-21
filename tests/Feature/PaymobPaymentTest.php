@@ -31,7 +31,7 @@ final class PaymobPaymentTest extends TestCase
 
         $response->assertRedirect('https://accept.paymob.com/unifiedcheckout/?publicKey=pk_test&clientSecret=cs_test');
         $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'provider' => 'paymob', 'provider_order_id' => 987, 'status' => 'pending']);
-        Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Token sk_test') && $request->url() === 'https://accept.paymob.com/v1/intention/' && $request['amount'] === 1031 && $request['currency'] === 'EGP' && $request['payment_methods'] === [1234] && $request['special_reference'] === 'order-'.$order->id);
+        Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Token sk_test') && $request->url() === 'https://accept.paymob.com/v1/intention/' && $request['amount'] === 1031 && $request['currency'] === 'EGP' && $request['payment_methods'] === [1234] && $request['special_reference'] === 'order-'.$order->id && $request['billing_data']['first_name'] === 'Billing' && $request['billing_data']['email'] === 'payer@example.com');
     }
 
     public function test_verified_callback_marks_payment_and_order_paid_idempotently(): void
@@ -69,6 +69,18 @@ final class PaymobPaymentTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_legacy_registrar_contact_data_does_not_substitute_for_payment_billing(): void
+    {
+        Http::fake();
+        [$user, $order] = $this->order();
+        $order->update(['billing_data' => null]);
+
+        $this->actingAs($user)->post(route('orders.pay', $order))->assertSessionHasErrors('payment');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'failed']);
+    }
+
     public function test_invalid_hmac_and_amount_mismatch_do_not_change_state(): void
     {
         [$user, $order] = $this->order();
@@ -85,7 +97,7 @@ final class PaymobPaymentTest extends TestCase
     private function order(): array
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
-        $order = Order::create(['user_id' => $user->id, 'type' => 'domain_registration', 'status' => 'awaiting_payment', 'domain' => 'example.com', 'tld' => 'com', 'registration_period' => 1, 'provider' => 'onlinenic', 'provider_cost' => '8.59', 'customer_price' => '10.31', 'currency' => 'EGP', 'premium' => false, 'registration_data' => ['registrant' => ['name' => 'Alice Example', 'email' => 'alice@example.com', 'voice' => '+201000000000', 'country' => 'EG', 'city' => 'Cairo', 'street' => '1 Main', 'province' => 'Cairo', 'postal_code' => '11511']], 'nameservers' => ['ns1.example.net', 'ns2.example.net']]);
+        $order = Order::create(['user_id' => $user->id, 'type' => 'domain_registration', 'status' => 'awaiting_payment', 'domain' => 'example.com', 'tld' => 'com', 'registration_period' => 1, 'provider' => 'onlinenic', 'provider_cost' => '8.59', 'customer_price' => '10.31', 'currency' => 'EGP', 'premium' => false, 'registration_data' => ['registrant' => ['name' => 'Legacy Registrar', 'email' => 'legacy@example.com']], 'billing_data' => ['first_name' => 'Billing', 'last_name' => 'Customer', 'email' => 'payer@example.com', 'phone_number' => '+201000000000', 'country' => 'EG', 'city' => 'Cairo', 'street' => '1 Main', 'state' => 'Cairo', 'postal_code' => '11511'], 'nameservers' => ['ns1.example.net', 'ns2.example.net']]);
 
         return [$user, $order];
     }

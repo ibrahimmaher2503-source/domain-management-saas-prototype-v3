@@ -20,7 +20,7 @@ final class DomainController extends Controller
     {
         abort_unless($domain->user_id === $request->user()->id, 404);
 
-        return Inertia::render('Domains/Show', ['domain' => [...$this->summary($domain), 'registration_contacts' => data_get($domain->order?->registration_data, 'registrant.name') ? ['registrant' => data_get($domain->order->registration_data, 'registrant.name')] : []]]);
+        return Inertia::render('Domains/Show', ['domain' => $this->summary($domain)]);
     }
 
     private function summary(Domain $domain): array

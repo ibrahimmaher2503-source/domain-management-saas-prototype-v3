@@ -55,7 +55,7 @@ final class DomainCheckoutService
                 'type' => 'domain_registration', 'status' => 'awaiting_payment', 'domain' => $quote->domain, 'tld' => $quote->capability->tld,
                 'registration_period' => $quote->period, 'provider' => 'onlinenic', 'provider_cost' => $quote->providerPrice->amount,
                 'customer_price' => $quote->customerPrice, 'currency' => $quote->currency, 'premium' => false,
-                'tmch_lookup_key' => null, 'registration_data' => $data->registrationData(), 'nameservers' => array_values(array_map(static fn (string $name): string => strtolower(trim($name)), $data->nameservers)),
+                'tmch_lookup_key' => null, 'billing_data' => $data->paymentBillingData->toArray(), 'nameservers' => array_values(array_map(static fn (string $name): string => strtolower(trim($name)), $data->nameservers)),
             ]);
         });
     }

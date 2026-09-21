@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['user_id', 'type', 'status', 'domain', 'tld', 'registration_period', 'provider', 'provider_cost', 'customer_price', 'currency', 'premium', 'tmch_lookup_key', 'registration_data', 'nameservers', 'provider_contact_ids', 'domain_password', 'provisioning_failure_reason'])]
+#[Fillable(['user_id', 'type', 'status', 'domain', 'tld', 'registration_period', 'provider', 'provider_cost', 'customer_price', 'currency', 'premium', 'tmch_lookup_key', 'registration_data', 'billing_data', 'nameservers', 'provider_contact_ids', 'domain_password', 'provisioning_failure_reason'])]
 class Order extends Model
 {
+    protected $hidden = ['registration_data', 'billing_data', 'provider_contact_ids', 'domain_password'];
+
     protected function casts(): array
     {
         return [
@@ -18,6 +20,7 @@ class Order extends Model
             'customer_price' => 'decimal:2',
             'premium' => 'boolean',
             'registration_data' => 'encrypted:array',
+            'billing_data' => 'encrypted:array',
             'nameservers' => 'array',
             'provider_contact_ids' => 'encrypted:array',
             'domain_password' => 'encrypted',

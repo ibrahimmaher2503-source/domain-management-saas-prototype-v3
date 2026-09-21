@@ -14,10 +14,13 @@ final class PaymobPaymentGateway implements PaymentGateway
 
     public function createPayment(Order $order): PaymentSession
     {
-        $contact = data_get($order->registration_data, 'registrant', []);
+        $billing = $order->billing_data;
+        foreach (['first_name', 'last_name', 'email', 'phone_number', 'country', 'city', 'street', 'state', 'postal_code'] as $field) {
+            if (! is_array($billing) || ! isset($billing[$field]) || trim((string) $billing[$field]) === '') {
+                throw new PaymentCreationFailed('Payment billing information is missing.');
+            }
+        }
         $reference = 'order-'.$order->id;
-        $firstName = trim(explode(' ', (string) ($contact['name'] ?? ''), 2)[0] ?? '');
-        $lastName = trim(explode(' ', (string) ($contact['name'] ?? ''), 2)[1] ?? $firstName);
         $notification = config('paymob.notification_url') ?: route('payments.paymob.callback');
         $redirect = config('paymob.redirection_url') ?: route('payments.paymob.return');
         $integrationId = (int) config('paymob.card_integration_id');
@@ -31,12 +34,7 @@ final class PaymobPaymentGateway implements PaymentGateway
             'currency' => strtoupper($order->currency),
             'payment_methods' => [$integrationId],
             'items' => [['name' => 'Domain registration: '.$order->domain, 'amount' => $amount, 'description' => 'Domain registration', 'quantity' => 1]],
-            'billing_data' => array_filter([
-                'first_name' => $firstName, 'last_name' => $lastName, 'email' => $contact['email'] ?? null,
-                'phone_number' => $contact['voice'] ?? null, 'country' => $contact['country'] ?? null,
-                'city' => $contact['city'] ?? null, 'street' => $contact['street'] ?? null,
-                'state' => $contact['province'] ?? null, 'postal_code' => $contact['postal_code'] ?? null,
-            ], static fn ($value) => $value !== null && $value !== ''),
+            'billing_data' => $billing,
             'special_reference' => $reference,
             'expiration' => (int) config('paymob.payment_expiration', 3600),
             'notification_url' => $notification,

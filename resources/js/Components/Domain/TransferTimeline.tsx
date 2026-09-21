@@ -1,0 +1,2 @@
+const steps = ['Requested', 'Submitted to registrar', 'Authorization pending', 'Completed'];
+export default function TransferTimeline() { return <ol className="space-y-4">{steps.map((step, index) => <li className="flex gap-3" key={step}><span className={`mt-1 h-3 w-3 rounded-full ${index < 2 ? 'bg-blue-600' : 'bg-[#d4d4d4]'}`} /><div><p className="font-medium">{step}</p><p className="text-sm text-[#737373]">{index < 2 ? 'Recorded' : 'Waiting'}</p></div></li>)}</ol>; }

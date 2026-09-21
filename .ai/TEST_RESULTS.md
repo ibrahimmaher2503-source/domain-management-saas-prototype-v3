@@ -5,3 +5,4 @@
 - `npm run build` -> Vite production build passed.
 - `npx playwright test` -> 1 browser smoke test passed.
 - `node --test prototype/tests/*.test.mjs` -> 15 prototype tests passed.
+- UI migration adds 7 Vitest assertions covering navigation, mock domains, empty state, badges, tabs, and local-only actions.

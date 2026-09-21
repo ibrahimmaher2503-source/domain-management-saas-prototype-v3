@@ -1,0 +1,3 @@
+export const domainTabs = ['Overview', 'Renewal', 'Contacts', 'Nameservers', 'Privacy', 'Security', 'Transfers', 'SSL', 'Billing', 'Activity'] as const;
+export type DomainTab = typeof domainTabs[number];
+export default function DomainTabs({ active, onChange }: { active: DomainTab; onChange: (tab: DomainTab) => void }) { return <div className="mb-5 overflow-x-auto border-b border-[#e5e5e5]"><div className="flex min-w-max gap-1">{domainTabs.map((tab) => <button key={tab} onClick={() => onChange(tab)} className={`border-b-2 px-3 py-3 text-sm font-medium ${active === tab ? 'border-[#171717] text-[#171717]' : 'border-transparent text-[#737373]'}`}>{tab}</button>)}</div></div>; }

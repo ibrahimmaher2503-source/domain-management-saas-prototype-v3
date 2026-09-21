@@ -1,0 +1,3 @@
+import StatusBadge from '@/Components/StatusBadge';
+import type { DomainDetail } from '@/types/domain';
+export default function DomainHeader({ domain }: { domain: DomainDetail }) { return <div className="mb-5 rounded-xl border border-[#e5e5e5] bg-white p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-3"><h1 className="truncate text-2xl font-semibold tracking-tight">{domain.name}</h1><StatusBadge status={domain.status} /></div><p className="mt-2 text-sm text-[#737373]">Registered {domain.registeredAt} · Expires {domain.expiresAt}</p></div><button className="rounded-md border border-[#d4d4d4] px-3 py-2 text-sm font-medium">More actions</button></div></div>; }

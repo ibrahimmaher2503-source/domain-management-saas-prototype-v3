@@ -1,0 +1,6 @@
+import AppLayout from '@/Layouts/AppLayout';
+import PageHeader from '@/Components/PageHeader';
+import StatusBadge from '@/Components/StatusBadge';
+import { transfers } from '@/mocks/transfers';
+
+export default function Index() { return <AppLayout title="Transfers"><PageHeader eyebrow="Registrar operations" title="Transfers" description="Track domain transfers and any customer action required." actions={<button data-mock-action className="rounded-md bg-[#171717] px-4 py-2 text-sm font-medium text-white">Transfer a domain</button>} /><div className="overflow-hidden rounded-xl border border-[#e5e5e5] bg-white"><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-[#fafafa] text-xs uppercase text-[#737373]"><tr>{['Domain', 'Direction', 'Status', 'Updated', 'Next action'].map((h) => <th className="px-5 py-3 font-medium" key={h}>{h}</th>)}</tr></thead><tbody className="divide-y divide-[#e5e5e5]">{transfers.map((item) => <tr key={item.id}><td className="px-5 py-4 font-medium">{item.domain}</td><td className="px-5 py-4">{item.type}</td><td className="px-5 py-4"><StatusBadge status={item.status} /></td><td className="px-5 py-4 text-[#737373]">{item.updatedAt}</td><td className="px-5 py-4">{item.nextAction ?? 'No action required'}</td></tr>)}</tbody></table></div></div></AppLayout>; }

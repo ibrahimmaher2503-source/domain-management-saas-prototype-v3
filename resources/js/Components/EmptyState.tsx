@@ -1,0 +1,1 @@
+export default function EmptyState({ title, description }: { title: string; description: string }) { return <div className="rounded-xl border border-dashed border-[#d4d4d4] bg-white p-10 text-center"><h2 className="font-semibold text-[#171717]">{title}</h2><p className="mt-1 text-sm text-[#737373]">{description}</p></div>; }

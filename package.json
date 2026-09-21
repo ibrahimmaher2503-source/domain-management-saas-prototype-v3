@@ -1,0 +1,9 @@
+{
+  "name": "domain-management-saas-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "serve": "http-server . -p 4173 -c-1"
+  }
+}

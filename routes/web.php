@@ -1,9 +1,10 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\DomainSearchController;
 use App\Http\Controllers\DomainCheckoutController;
+use App\Http\Controllers\DomainSearchController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -25,6 +26,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/checkout/domain', [DomainCheckoutController::class, 'create'])->name('checkout.domain');
     Route::post('/checkout/domain', [DomainCheckoutController::class, 'store'])->name('checkout.domain.store');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+    Route::post('/orders/{order}/pay', [PaymentController::class, 'pay'])->name('orders.pay');
     Route::get('/domains/{domain}', fn (int $domain) => Inertia::render('Domains/Show', ['domain' => $domain]))->name('domains.show');
     Route::get('/transfers', fn () => Inertia::render('Transfers/Index'))->name('transfers');
     Route::get('/ssl', fn () => Inertia::render('SSL/Index'))->name('ssl');
@@ -32,6 +34,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/settings', fn () => Inertia::render('Settings/Index'))->name('settings');
 });
 
+Route::post('/payments/paymob/callback', [PaymentController::class, 'callback'])->name('payments.paymob.callback');
+Route::get('/payments/paymob/return', [PaymentController::class, 'return'])->name('payments.paymob.return');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

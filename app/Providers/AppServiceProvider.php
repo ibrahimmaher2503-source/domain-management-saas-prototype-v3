@@ -2,12 +2,15 @@
 
 namespace App\Providers;
 
+use App\Domain\Billing\Contracts\PaymentGateway;
 use App\Domain\Registrar\Contracts\RegistrarGateway;
 use App\Integrations\OnlineNic\OnlineNicAuthenticator;
 use App\Integrations\OnlineNic\OnlineNicClient;
 use App\Integrations\OnlineNic\OnlineNicRegistrarGateway;
 use App\Integrations\OnlineNic\OnlineNicTldResolver;
 use App\Integrations\OnlineNic\Transport\TcpSocketTransport;
+use App\Integrations\Paymob\PaymobClient;
+use App\Integrations\Paymob\PaymobPaymentGateway;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -18,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(PaymentGateway::class, fn () => new PaymobPaymentGateway(new PaymobClient));
         $this->app->singleton(RegistrarGateway::class, function () {
             $clientId = (string) config('onlinenic.client_id', '');
             $password = (string) config('onlinenic.password', '');

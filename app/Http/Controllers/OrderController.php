@@ -16,6 +16,7 @@ final class OrderController extends Controller
             'id' => $order->id, 'domain' => $order->domain, 'status' => $order->status, 'registration_period' => $order->registration_period,
             'customer_price' => $order->customer_price, 'currency' => $order->currency, 'registrant_name' => data_get($order->registration_data, 'registrant.name'),
             'nameservers' => $order->nameservers, 'created_at' => $order->created_at,
+            'payment_error' => session('errors')?->first('payment'),
         ]]);
     }
 }

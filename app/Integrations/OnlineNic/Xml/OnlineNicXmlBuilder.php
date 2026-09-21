@@ -8,7 +8,7 @@ use InvalidArgumentException;
 
 final class OnlineNicXmlBuilder
 {
-    /** @param array<string, scalar|null> $payload */
+    /** @param array<string, scalar|array<int, scalar>|null> $payload */
     public function build(string $category, string $action, array $payload, string $transactionId, string $checksum): string
     {
         if ($category === '' || $action === '' || $transactionId === '') {
@@ -24,10 +24,12 @@ final class OnlineNicXmlBuilder
         $params = $document->createElement('params');
         $request->appendChild($params);
         foreach ($payload as $name => $value) {
-            $param = $document->createElement('param');
-            $param->setAttribute('name', $name);
-            $param->appendChild($document->createTextNode((string) $value));
-            $params->appendChild($param);
+            foreach (is_array($value) ? $value : [$value] as $item) {
+                $param = $document->createElement('param');
+                $param->setAttribute('name', $name);
+                $param->appendChild($document->createTextNode((string) $item));
+                $params->appendChild($param);
+            }
         }
         $this->append($document, $request, 'cltrid', $transactionId);
         $this->append($document, $request, 'chksum', $checksum);

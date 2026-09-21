@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Domain;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -10,6 +11,7 @@ use Tests\TestCase;
 class ExampleTest extends TestCase
 {
     use RefreshDatabase;
+
     /**
      * A basic test example.
      */
@@ -26,6 +28,10 @@ class ExampleTest extends TestCase
 
         $this->actingAs($user)->get('/overview')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Overview/Index'));
         $this->actingAs($user)->get('/domains')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Domains/Index'));
-        $this->actingAs($user)->get('/domains/1')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Domains/Show')->where('domain', 1));
+        $domain = Domain::create(['user_id' => $user->id, 'name' => 'example.com', 'tld' => 'com', 'provider' => 'onlinenic', 'status' => 'active', 'nameservers' => ['ns1.example.net', 'ns2.example.net']]);
+        $this->actingAs($user)->get('/domains/'.$domain->id)->assertOk()->assertInertia(fn (Assert $page) => $page->component('Domains/Show')->where('domain.id', $domain->id));
+        $other = User::factory()->create(['email_verified_at' => now()]);
+        $this->actingAs($other)->get('/domains/'.$domain->id)->assertNotFound();
+        $this->actingAs($other)->get('/domains')->assertInertia(fn (Assert $page) => $page->component('Domains/Index')->has('domains', 0));
     }
 }

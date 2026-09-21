@@ -6,6 +6,7 @@ use App\Domain\Billing\Money;
 use App\Domain\Billing\Services\StartOrderPayment;
 use App\Integrations\Paymob\Exceptions\PaymobException;
 use App\Integrations\Paymob\PaymobHmacVerifier;
+use App\Jobs\ProvisionDomainRegistration;
 use App\Models\Order;
 use App\Models\Payment;
 use Illuminate\Http\JsonResponse;
@@ -54,7 +55,9 @@ final class PaymentController extends Controller
             $payment->update(['provider_transaction_id' => $transactionId, 'provider_status' => ($transaction['success'] ?? false) ? 'success' : 'failed', 'provider_metadata' => ['callback' => ['success' => (bool) ($transaction['success'] ?? false), 'pending' => (bool) ($transaction['pending'] ?? false)]]]);
             if (($transaction['success'] ?? false) === true && ($transaction['pending'] ?? true) === false && $amountMatches && $currencyMatches) {
                 $payment->update(['status' => 'paid', 'paid_at' => now()]);
-                $payment->order()->where('status', 'awaiting_payment')->update(['status' => 'paid']);
+                if ($payment->order()->where('status', 'awaiting_payment')->update(['status' => 'paid']) === 1) {
+                    ProvisionDomainRegistration::dispatch($payment->order_id)->onConnection('database')->afterCommit();
+                }
             } elseif (($transaction['success'] ?? false) === false && ($transaction['pending'] ?? true) === false) {
                 $payment->update(['status' => 'failed', 'failed_at' => now()]);
             }

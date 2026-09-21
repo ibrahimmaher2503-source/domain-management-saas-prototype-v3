@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ProvisionDomainRegistration;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 final class PaymobPaymentTest extends TestCase
@@ -17,6 +19,7 @@ final class PaymobPaymentTest extends TestCase
     {
         parent::setUp();
         config(['paymob.secret_key' => 'sk_test', 'paymob.public_key' => 'pk_test', 'paymob.card_integration_id' => '1234', 'paymob.hmac_secret' => 'hmac-secret']);
+        Queue::fake();
     }
 
     public function test_start_payment_creates_intention_and_redirects(): void
@@ -41,6 +44,8 @@ final class PaymobPaymentTest extends TestCase
         $this->postJson(route('payments.paymob.callback'), $payload)->assertOk();
         $this->assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'paid', 'provider_transaction_id' => '77']);
         $this->assertSame('paid', $order->fresh()->status);
+        Queue::assertPushed(ProvisionDomainRegistration::class, fn (ProvisionDomainRegistration $job) => $job->connection === 'database');
+        Queue::assertPushed(ProvisionDomainRegistration::class, 1);
     }
 
     public function test_different_user_cannot_pay_and_paid_order_cannot_start(): void

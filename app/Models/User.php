@@ -28,6 +28,16 @@ class User extends Authenticatable
         return $this->hasMany(Payment::class);
     }
 
+    public function domains(): HasMany
+    {
+        return $this->hasMany(Domain::class);
+    }
+
+    public function registrarOperations(): HasMany
+    {
+        return $this->hasMany(RegistrarOperation::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

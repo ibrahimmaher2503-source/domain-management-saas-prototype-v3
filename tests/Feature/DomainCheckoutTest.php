@@ -3,10 +3,16 @@
 namespace Tests\Feature;
 
 use App\Domain\Registrar\Contracts\RegistrarGateway;
+use App\Domain\Registrar\DTOs\CheckContactData;
 use App\Domain\Registrar\DTOs\CheckDomainData;
+use App\Domain\Registrar\DTOs\ContactResult;
+use App\Domain\Registrar\DTOs\CreateContactData;
 use App\Domain\Registrar\DTOs\DomainAvailability;
+use App\Domain\Registrar\DTOs\DomainInfo;
 use App\Domain\Registrar\DTOs\DomainPrice;
 use App\Domain\Registrar\DTOs\DomainPriceQuery;
+use App\Domain\Registrar\DTOs\DomainRegistrationData;
+use App\Domain\Registrar\DTOs\RegistrationResult;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -85,5 +91,25 @@ final class CheckoutFakeRegistrar implements RegistrarGateway
     public function getDomainPrice(DomainPriceQuery $query): DomainPrice
     {
         return new DomainPrice($query->domain, '8.59', $query->period);
+    }
+
+    public function createContact(CreateContactData $data, string $cltrid): ContactResult
+    {
+        throw new \LogicException('Unexpected write.');
+    }
+
+    public function checkContact(CheckContactData $data): bool
+    {
+        throw new \LogicException('Unexpected check.');
+    }
+
+    public function registerDomain(DomainRegistrationData $data, string $cltrid): RegistrationResult
+    {
+        throw new \LogicException('Unexpected write.');
+    }
+
+    public function getDomainInfo(string $domain): DomainInfo
+    {
+        throw new \LogicException('Unexpected info.');
     }
 }

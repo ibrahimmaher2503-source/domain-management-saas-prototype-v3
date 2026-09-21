@@ -96,7 +96,7 @@ final class OnlineNicClient
         }
     }
 
-    public function execute(OnlineNicCommand $command): OnlineNicResponse
+    public function execute(OnlineNicCommand $command, ?string $transactionId = null): OnlineNicResponse
     {
         if (! $this->authenticated) {
             throw new ProviderAuthenticationFailed('OnlineNIC login is required before commands.');
@@ -107,7 +107,7 @@ final class OnlineNicClient
             $this->login();
         }
 
-        $response = $this->send($command);
+        $response = $this->send($command, true, $transactionId);
         if (! $response->successful()) {
             if ($response->code === 2104) {
                 throw new ProviderInsufficientBalance($response->message, $response->code, $response->message);
@@ -160,12 +160,12 @@ final class OnlineNicClient
         $this->requestCount = 0;
     }
 
-    private function send(OnlineNicCommand $command, bool $count = true): OnlineNicResponse
+    private function send(OnlineNicCommand $command, bool $count = true, ?string $transactionId = null): OnlineNicResponse
     {
         if (! $this->connected) {
             throw new ProviderUnavailable('OnlineNIC is not connected.');
         }
-        $transactionId = $this->transactions->generate();
+        $transactionId ??= $this->transactions->generate();
         $payload = $command->payload();
         $checksum = $this->authenticator->requestChecksum($transactionId, $command->action(), $payload);
         $xml = $this->builder->build($command->category(), $command->action(), $payload, $transactionId, $checksum);
@@ -173,7 +173,7 @@ final class OnlineNicClient
         try {
             $this->transport->write($xml);
         } catch (Throwable $exception) {
-            throw new ProviderUnavailable('OnlineNIC request was not sent.', null, $exception->getMessage());
+            throw new ProviderAmbiguousResponse('OnlineNIC request may have been partially sent.', null, $exception->getMessage());
         }
         if ($count) {
             $this->requestCount++;
@@ -181,7 +181,7 @@ final class OnlineNicClient
         try {
             $response = $this->parser->parse($this->transport->read());
         } catch (InvalidProviderResponse $exception) {
-            throw $exception;
+            throw new ProviderAmbiguousResponse('OnlineNIC response was invalid after the request was sent.', null, $exception->getMessage());
         } catch (Throwable $exception) {
             throw new ProviderAmbiguousResponse('OnlineNIC request may have been accepted, but no reliable response was received.', null, $exception->getMessage());
         } finally {

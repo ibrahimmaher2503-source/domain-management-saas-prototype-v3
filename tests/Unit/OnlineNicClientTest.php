@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Domain\Registrar\DTOs\DomainRegistrationData;
+use App\Integrations\OnlineNic\Commands\CreateDomainCommand;
 use App\Integrations\OnlineNic\Contracts\OnlineNicCommand;
 use App\Integrations\OnlineNic\Contracts\OnlineNicTransport;
 use App\Integrations\OnlineNic\Exceptions\ProviderAmbiguousResponse;
@@ -22,6 +24,22 @@ final class OnlineNicClientTest extends TestCase
 
         $this->assertSame('4db8f0fb0a05d58bf8507fedbf036727', $auth->requestChecksum('abc', 'Login', ['clid' => '123']));
         $this->assertSame($auth->requestChecksum('abc', 'Login'), $auth->requestChecksum('abc', 'Login'));
+    }
+
+    public function test_write_checksums_follow_contact_and_com_formulas(): void
+    {
+        $auth = new OnlineNicAuthenticator('123', 'secret');
+        $prefix = '123'.md5('secret').'tx';
+        $this->assertSame(md5($prefix.'crtcontact'.'Alice'.'Example'.'alice@example.com'), $auth->requestChecksum('tx', 'CreateContact', ['domaintype' => 0, 'name' => 'Alice', 'org' => 'Example', 'email' => 'alice@example.com', 'password' => 'ignored']));
+        $this->assertSame(md5($prefix.'createdomain'.'0'.'example.com'.'2'.'ns1.example.net'.'ns2.example.net'.'r'.'a'.'t'.'b'.'password'), $auth->requestChecksum('tx', 'CreateDomain', ['domaintype' => 0, 'mltype' => 0, 'domain' => 'example.com', 'period' => 2, 'dns' => ['ns1.example.net', 'ns2.example.net'], 'registrant' => 'r', 'tech' => 't', 'billing' => 'b', 'admin' => 'a', 'password' => 'password']));
+    }
+
+    public function test_create_domain_command_maps_com_order_data(): void
+    {
+        $command = new CreateDomainCommand(new DomainRegistrationData('example.com', 2, ['ns1.example.net', 'ns2.example.net'], ['registrant' => 'r', 'administrative' => 'a', 'technical' => 't', 'billing' => 'b'], 'password'));
+
+        $this->assertSame('CreateDomain', $command->action());
+        $this->assertSame(['domaintype' => 0, 'mltype' => 0, 'domain' => 'example.com', 'period' => 2, 'dns' => ['ns1.example.net', 'ns2.example.net'], 'registrant' => 'r', 'tech' => 't', 'billing' => 'b', 'admin' => 'a', 'password' => 'password'], $command->payload());
     }
 
     public function test_transaction_ids_are_unique_and_provider_safe(): void
@@ -74,6 +92,18 @@ XML);
         } catch (ProviderAmbiguousResponse) {
             $this->assertCount(2, $transport->writes);
         }
+    }
+
+    public function test_malformed_response_after_write_is_ambiguous(): void
+    {
+        $success = '<response><code>1000</code><msg>OK</msg><cltrid>x</cltrid><svtrid>srv</svtrid><resData/></response>';
+        $transport = new FakeOnlineNicTransport([$success, $success, 'not xml']);
+        $client = $this->client($transport);
+        $client->connect();
+        $client->login();
+
+        $this->expectException(ProviderAmbiguousResponse::class);
+        $client->execute(new DummyCommand);
     }
 
     public function test_session_limit_reconnects_before_next_command(): void

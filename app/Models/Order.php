@@ -6,8 +6,9 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['user_id', 'type', 'status', 'domain', 'tld', 'registration_period', 'provider', 'provider_cost', 'customer_price', 'currency', 'premium', 'tmch_lookup_key', 'registration_data', 'nameservers'])]
+#[Fillable(['user_id', 'type', 'status', 'domain', 'tld', 'registration_period', 'provider', 'provider_cost', 'customer_price', 'currency', 'premium', 'tmch_lookup_key', 'registration_data', 'nameservers', 'provider_contact_ids', 'domain_password', 'provisioning_failure_reason'])]
 class Order extends Model
 {
     protected function casts(): array
@@ -18,6 +19,8 @@ class Order extends Model
             'premium' => 'boolean',
             'registration_data' => 'encrypted:array',
             'nameservers' => 'array',
+            'provider_contact_ids' => 'encrypted:array',
+            'domain_password' => 'encrypted',
         ];
     }
 
@@ -29,5 +32,20 @@ class Order extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function registrarOperations(): HasMany
+    {
+        return $this->hasMany(RegistrarOperation::class);
+    }
+
+    public function domains(): HasMany
+    {
+        return $this->hasMany(Domain::class);
+    }
+
+    public function registeredDomain(): HasOne
+    {
+        return $this->hasOne(Domain::class);
     }
 }

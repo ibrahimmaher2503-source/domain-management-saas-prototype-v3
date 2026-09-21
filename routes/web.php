@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DomainCheckoutController;
+use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainSearchController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
@@ -21,13 +22,13 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/overview', fn () => Inertia::render('Overview/Index'))->name('overview');
     Route::get('/dashboard', fn () => Inertia::render('Overview/Index'))->name('dashboard');
-    Route::get('/domains', fn () => Inertia::render('Domains/Index'))->name('domains');
+    Route::get('/domains', [DomainController::class, 'index'])->name('domains');
     Route::get('/domains/search', [DomainSearchController::class, 'show'])->name('domains.search');
     Route::get('/checkout/domain', [DomainCheckoutController::class, 'create'])->name('checkout.domain');
     Route::post('/checkout/domain', [DomainCheckoutController::class, 'store'])->name('checkout.domain.store');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('/orders/{order}/pay', [PaymentController::class, 'pay'])->name('orders.pay');
-    Route::get('/domains/{domain}', fn (int $domain) => Inertia::render('Domains/Show', ['domain' => $domain]))->name('domains.show');
+    Route::get('/domains/{domain}', [DomainController::class, 'show'])->name('domains.show');
     Route::get('/transfers', fn () => Inertia::render('Transfers/Index'))->name('transfers');
     Route::get('/ssl', fn () => Inertia::render('SSL/Index'))->name('ssl');
     Route::get('/billing', fn () => Inertia::render('Billing/Index'))->name('billing');

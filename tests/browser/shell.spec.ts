@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('customer can navigate the migrated domain control center', async ({ page, context }) => {
+test('customer sees their real empty domain portfolio', async ({ page, context }) => {
     const email = `customer-${Date.now()}@example.com`;
     await page.goto('/register');
     await page.getByLabel('Name').fill('Prototype Customer');
@@ -17,10 +17,6 @@ test('customer can navigate the migrated domain control center', async ({ page, 
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page.getByRole('main').getByRole('heading', { name: 'Overview' })).toBeVisible();
     await page.getByRole('link', { name: 'Domains' }).first().click();
-    await page.getByRole('link', { name: 'example.com', exact: true }).click();
-    await expect(page.getByRole('main').getByRole('heading', { name: 'example.com' })).toBeVisible();
-    for (const tab of ['Nameservers', 'Security', 'Activity']) {
-        await page.getByRole('button', { name: tab, exact: true }).click();
-        await expect(page.getByRole('button', { name: tab, exact: true })).toHaveClass(/border-\[#171717\]/);
-    }
+    await expect(page.getByRole('heading', { name: 'No domains yet' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Search domain' })).toBeVisible();
 });

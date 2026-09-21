@@ -36,12 +36,12 @@ final class OnlineNicRegistrarGateway implements RegistrarGateway
     {
         $this->client->ensureAuthenticated();
         $response = $this->client->execute(new GetDomainPriceCommand($query->domain, $this->tlds->domainType($query->domain), $query->period));
-        $amount = filter_var($response->data['price'] ?? null, FILTER_VALIDATE_FLOAT);
-        if ($amount === false) {
+        $amount = $response->data['price'] ?? null;
+        if (! is_string($amount) || ! preg_match('/^\d+(?:\.\d{1,2})?$/', $amount)) {
             throw new InvalidProviderResponse('OnlineNIC returned an invalid domain price.', $response->code, $response->message);
         }
 
-        return new DomainPrice($query->domain, (float) $amount, $query->period, $query->operation);
+        return new DomainPrice($query->domain, $amount, $query->period, $query->operation);
     }
 
     private function stringValue(mixed $value): ?string

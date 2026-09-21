@@ -6,11 +6,12 @@ use App\Domain\Domains\DTOs\DomainSearchResult;
 use App\Domain\Registrar\Contracts\RegistrarGateway;
 use App\Domain\Registrar\DTOs\CheckDomainData;
 use App\Domain\Registrar\DTOs\DomainPriceQuery;
+use App\Integrations\OnlineNic\Exceptions\UnsupportedCapability;
 use InvalidArgumentException;
 
 final class DomainSearchService
 {
-    public function __construct(private readonly RegistrarGateway $registrar, private readonly CustomerDomainPricing $pricing) {}
+    public function __construct(private readonly RegistrarGateway $registrar, private readonly CustomerDomainPricing $pricing, private readonly ?RegistrationCapabilityResolver $capabilities = null) {}
 
     public function search(string $input, int $period = 1): DomainSearchResult
     {
@@ -21,7 +22,16 @@ final class DomainSearchService
         $availability = $this->registrar->checkDomain(new CheckDomainData($domain));
         $providerPrice = $availability->available ? $this->registrar->getDomainPrice(new DomainPriceQuery($domain, 'registration', $period)) : null;
 
-        return new DomainSearchResult($availability, $providerPrice, $providerPrice ? $this->pricing->customerPrice($providerPrice) : null, $period);
+        $policy = null;
+        if ($this->capabilities) {
+            try {
+                $policy = $this->capabilities->forDomain($domain);
+            } catch (UnsupportedCapability) {
+                // Search support is intentionally broader than registration-ready support.
+            }
+        }
+
+        return new DomainSearchResult($availability, $providerPrice, $providerPrice ? $this->pricing->customerPrice($providerPrice) : null, $period, $policy?->supportsPeriod($period) ?? false, $policy?->periods ?? []);
     }
 
     public function normalize(string $input): string

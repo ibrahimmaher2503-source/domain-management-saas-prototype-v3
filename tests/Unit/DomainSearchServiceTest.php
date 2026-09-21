@@ -35,8 +35,8 @@ final class DomainSearchServiceTest extends TestCase
         $result = (new DomainSearchService($gateway, new CustomerDomainPricing(20)))->search('  EXAMPLE.COM ');
 
         $this->assertSame('example.com', $result->availability->domain);
-        $this->assertSame(8.59, $result->providerPrice?->amount);
-        $this->assertSame(10.31, $result->customerPrice);
+        $this->assertSame('8.59', $result->providerPrice?->amount);
+        $this->assertSame('10.31', $result->customerPrice);
     }
 
     public function test_unavailable_domain_does_not_request_a_price(): void

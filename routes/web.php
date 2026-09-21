@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DomainSearchController;
+use App\Http\Controllers\DomainCheckoutController;
+use App\Http\Controllers\OrderController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -20,6 +22,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', fn () => Inertia::render('Overview/Index'))->name('dashboard');
     Route::get('/domains', fn () => Inertia::render('Domains/Index'))->name('domains');
     Route::get('/domains/search', [DomainSearchController::class, 'show'])->name('domains.search');
+    Route::get('/checkout/domain', [DomainCheckoutController::class, 'create'])->name('checkout.domain');
+    Route::post('/checkout/domain', [DomainCheckoutController::class, 'store'])->name('checkout.domain.store');
+    Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::get('/domains/{domain}', fn (int $domain) => Inertia::render('Domains/Show', ['domain' => $domain]))->name('domains.show');
     Route::get('/transfers', fn () => Inertia::render('Transfers/Index'))->name('transfers');
     Route::get('/ssl', fn () => Inertia::render('SSL/Index'))->name('ssl');

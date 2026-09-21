@@ -10,7 +10,10 @@ final readonly class DomainSearchResult
     public function __construct(
         public DomainAvailability $availability,
         public ?DomainPrice $providerPrice,
-        public ?float $customerPrice,
+        public ?string $customerPrice,
         public int $period,
+        public bool $registrationReady = false,
+        /** @var array<int, int> */
+        public array $registrationPeriods = [],
     ) {}
 }

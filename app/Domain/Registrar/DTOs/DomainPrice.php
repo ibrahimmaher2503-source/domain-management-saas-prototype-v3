@@ -6,7 +6,7 @@ final readonly class DomainPrice
 {
     public function __construct(
         public string $domain,
-        public float $amount,
+        public string $amount,
         public int $period,
         public string $operation = 'registration',
         public ?string $currency = null,

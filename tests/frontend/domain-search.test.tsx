@@ -13,15 +13,15 @@ vi.mock('@inertiajs/react', async () => {
 
 describe('domain search', () => {
     it('renders the search input and available result', () => {
-        render(<Search result={{ availability: { domain: 'example.com', available: true, premium: false, trademarkClaimRequired: false }, customerPrice: 10.31, period: 1 }} />);
+        render(<Search result={{ availability: { domain: 'example.com', available: true, premium: false, trademarkClaimRequired: false }, customerPrice: '10.31', period: 1, registrationReady: true }} />);
         expect(screen.getByPlaceholderText('example.com')).toBeInTheDocument();
         expect(screen.getByText('Available')).toBeInTheDocument();
         expect(screen.getByText('10.31 / year')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+        expect(screen.getByRole('link', { name: 'Continue' })).toBeInTheDocument();
     });
 
     it('renders premium and provider error states', () => {
-        const { rerender } = render(<Search result={{ availability: { domain: 'premium.com', available: true, premium: true, trademarkClaimRequired: true }, customerPrice: 20, period: 1 }} />);
+        const { rerender } = render(<Search result={{ availability: { domain: 'premium.com', available: true, premium: true, trademarkClaimRequired: true }, customerPrice: '20.00', period: 1 }} />);
         expect(screen.getByText('Premium domain')).toBeInTheDocument();
         expect(screen.getByText(/trademark acknowledgement/i)).toBeInTheDocument();
         rerender(<Search error={{ type: 'provider', message: 'Domain search is temporarily unavailable. Please try again.' }} />);

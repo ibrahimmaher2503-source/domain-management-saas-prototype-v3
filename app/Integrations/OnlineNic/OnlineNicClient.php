@@ -86,6 +86,16 @@ final class OnlineNicClient
         return $response;
     }
 
+    public function ensureAuthenticated(): void
+    {
+        if (! $this->connected) {
+            $this->connect();
+        }
+        if (! $this->authenticated) {
+            $this->login();
+        }
+    }
+
     public function execute(OnlineNicCommand $command): OnlineNicResponse
     {
         if (! $this->authenticated) {

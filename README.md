@@ -40,7 +40,7 @@ npm run dev
 
 ## Implemented product surfaces
 
-- Persistent SaaS app shell and workspace navigation.
+- Persistent SaaS app shell and customer navigation.
 - Overview dashboard with portfolio metrics and Action Required state.
 - Domains portfolio with lifecycle status separate from Transfer Lock.
 - Domain Detail control center with tabs:
@@ -63,8 +63,8 @@ npm run dev
 - Security + re-authentication flow before auth-code reveal.
 - Domain-scoped and global Transfers.
 - Domain-scoped and global SSL certificate views.
-- Billing, workspace members, and notification settings.
-- Domain search, cart, checkout, and asynchronous registration messaging.
+- Billing and settings.
+- Domain search and asynchronous registration messaging.
 - Command palette in the zero-install prototype (`Cmd/Ctrl + K`).
 - Responsive CSS for tablet/mobile.
 
@@ -77,7 +77,7 @@ The customer Overview dashboard is now treated as a portfolio cockpit rather tha
 - Derived "Needs attention" list ordered by severity.
 - Upcoming renewals sorted by expiration date.
 - Auto-renew coverage and active transfer summary.
-- Quick actions for buying, transferring, billing, and workspace membership.
+- Quick actions for buying, transferring, and billing.
 - Recent domains and recent activity in the same control surface.
 - Responsive layouts for desktop, tablet, and mobile.
 
@@ -86,8 +86,8 @@ The customer Overview dashboard is now treated as a portfolio cockpit rather tha
 
 The customer domain-management surfaces now use the same control-center quality level as the Overview dashboard:
 
-- Domains portfolio summary with combined search, lifecycle, and workspace filters.
-- Rich portfolio rows separating lifecycle, renewal, Transfer Lock, Privacy, SSL, and workspace context.
+- Domains portfolio summary with combined search and lifecycle filters.
+- Rich portfolio rows separating lifecycle, renewal, Transfer Lock, Privacy, and SSL context.
 - Domain Detail hero with domain health, expiration, auto-renew, and security KPIs.
 - Action Required state placed above domain controls.
 - Renewal builder with TLD-supported periods and dynamic customer renewal quote.

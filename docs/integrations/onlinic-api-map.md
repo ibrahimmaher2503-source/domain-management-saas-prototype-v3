@@ -46,7 +46,7 @@ Every request has `category`, `action`, zero or more `params`, unique `cltrid`, 
 | Registrar transfer | `QueryRegTransfer` | `domaintype`, `domain`; status | read | Transfer is asynchronous. |
 | Registrar transfer | `RequestRegTransfer` | `domaintype`, `domain`, `mailway` | write-billing/async | No Auth/EPP field is documented. `mailway=On` means reseller-sent confirmation; `Off` means OnlineNIC-sent and is the platform choice. Source example returns code 1001/pending and a successful transfer renews one year. |
 | Registrar transfer | `CancelRegTransfer` | `domaintype`, `domain` | destructive write | Cannot cancel after transfer success or failure. Application confirms a pending state before writing. |
-| SSL | `Order` | product, validity, server, contacts, CSR/organization/approver fields; order ID/price | write-billing/async | Can purchase or renew. |
+| SSL | `Order` | product, validity, server, contacts, CSR/organization/approver fields; order ID/price | write-billing/async | Can purchase or renew. No documented pre-order price lookup; v1 uses explicit server-side product pricing. |
 | SSL | `GetApproverEmailList` | domain; email list | read | Domain validation choices. |
 | SSL | `Cancel` | order ID | destructive write | Cancel certificate order. |
 | SSL | `Info` | order ID; full order/status/certificate data | read-sensitive | Certificate/CSR data is sensitive. |

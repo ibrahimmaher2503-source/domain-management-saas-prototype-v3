@@ -21,7 +21,7 @@ final class OrderController extends Controller
             'payment_error' => session('errors')?->first('payment'),
             'provisioning_failure_reason' => $order->provisioning_failure_reason,
             'domain_id' => $order->domain_id ?? $order->registeredDomain?->id,
-            'requires_reconciliation' => $requiresReconciliation,
+            'requires_reconciliation' => $requiresReconciliation, 'ssl_certificate_id' => $order->ssl_certificate_id,
         ]]);
     }
 }

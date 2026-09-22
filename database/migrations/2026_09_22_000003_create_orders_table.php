@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('tld', 63);
             $table->unsignedSmallInteger('registration_period');
             $table->string('provider', 40);
-            $table->decimal('provider_cost', 12, 2);
+            $table->decimal('provider_cost', 12, 2)->nullable();
             $table->decimal('customer_price', 12, 2);
             $table->string('currency', 3);
             $table->boolean('premium')->default(false);

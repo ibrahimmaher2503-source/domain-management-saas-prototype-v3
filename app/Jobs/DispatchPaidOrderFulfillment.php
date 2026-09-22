@@ -28,6 +28,7 @@ final class DispatchPaidOrderFulfillment implements ShouldQueue
             'domain_registration' => ProvisionDomainRegistration::dispatch($order->id)->onConnection('database'),
             'domain_renewal' => ProvisionDomainRenewal::dispatch($order->id)->onConnection('database'),
             'domain_transfer' => ProvisionDomainTransfer::dispatch($order->id)->onConnection('database'),
+            'ssl_certificate' => ProvisionSslCertificate::dispatch($order->id)->onConnection('database'),
             default => $order->update(['status' => 'failed', 'provisioning_failure_reason' => 'Paid order requires review.']),
         };
     }

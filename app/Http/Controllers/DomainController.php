@@ -126,6 +126,6 @@ final class DomainController extends Controller
 
     private function summary(Domain $domain): array
     {
-        return ['id' => $domain->id, 'name' => $domain->name, 'status' => $domain->status, 'registered_at' => $domain->registered_at?->toDateString(), 'expires_at' => $domain->expires_at?->toDateString(), 'nameservers' => $domain->nameservers, 'transfer_locked' => $domain->transfer_locked, 'provider_synced_at' => $domain->provider_synced_at?->toIso8601String()];
+        return ['id' => $domain->id, 'name' => $domain->name, 'status' => $domain->status, 'registered_at' => $domain->registered_at?->toDateString(), 'expires_at' => $domain->expires_at?->toDateString(), 'nameservers' => $domain->nameservers, 'transfer_locked' => $domain->transfer_locked, 'provider_synced_at' => $domain->provider_synced_at?->toIso8601String(), 'ssl_certificates' => $domain->sslCertificates()->latest()->get()->map(fn ($c) => ['id' => $c->id, 'product' => $c->product_key, 'status' => $c->status, 'expires_at' => $c->expires_at?->toDateString()])->all()];
     }
 }

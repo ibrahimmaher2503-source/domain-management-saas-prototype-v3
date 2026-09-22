@@ -45,4 +45,9 @@ class Domain extends Model
     {
         return $this->hasMany(Transfer::class);
     }
+
+    public function sslCertificates(): HasMany
+    {
+        return $this->hasMany(SslCertificate::class);
+    }
 }

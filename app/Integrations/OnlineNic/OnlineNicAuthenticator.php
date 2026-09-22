@@ -18,6 +18,8 @@ final class OnlineNicAuthenticator
             $values = implode('', array_map(static fn ($key): string => (string) ($payload[$key] ?? ''), ['domaintype', 'domain', 'period']))
                 .(string) ($dns[0] ?? '').(string) ($dns[1] ?? '')
                 .implode('', array_map(static fn ($key): string => (string) ($payload[$key] ?? ''), ['registrant', 'admin', 'tech', 'billing', 'password']));
+        } elseif ($action === 'updatedomaindns') {
+            $values = (string) ($payload['domaintype'] ?? '').(string) ($payload['domain'] ?? '');
         } else {
             $values = in_array($action, ['login', 'logout'], true)
                 ? ''

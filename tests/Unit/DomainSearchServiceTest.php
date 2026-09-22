@@ -11,7 +11,9 @@ use App\Domain\Registrar\DTOs\DomainInfo;
 use App\Domain\Registrar\DTOs\DomainPrice;
 use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
+use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Commands\CheckDomainCommand;
 use App\Integrations\OnlineNic\Commands\GetDomainPriceCommand;
 use App\Integrations\OnlineNic\Exceptions\UnsupportedCapability;
@@ -88,5 +90,10 @@ final class FakeRegistrarGateway implements RegistrarGateway
     public function getDomainInfo(string $domain): DomainInfo
     {
         throw new InvalidArgumentException('Unexpected info.');
+    }
+
+    public function updateNameservers(UpdateNameserversData $data, string $cltrid): OperationResult
+    {
+        throw new InvalidArgumentException('Unexpected write.');
     }
 }

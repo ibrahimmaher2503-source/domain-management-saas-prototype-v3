@@ -3,7 +3,9 @@
 namespace Tests\Unit;
 
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
+use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Commands\CreateDomainCommand;
+use App\Integrations\OnlineNic\Commands\UpdateDomainDnsCommand;
 use App\Integrations\OnlineNic\Contracts\OnlineNicCommand;
 use App\Integrations\OnlineNic\Contracts\OnlineNicTransport;
 use App\Integrations\OnlineNic\Exceptions\ProviderAmbiguousResponse;
@@ -40,6 +42,20 @@ final class OnlineNicClientTest extends TestCase
 
         $this->assertSame('CreateDomain', $command->action());
         $this->assertSame(['domaintype' => 0, 'mltype' => 0, 'domain' => 'example.com', 'period' => 2, 'dns' => ['ns1.example.net', 'ns2.example.net'], 'registrant' => 'r', 'tech' => 't', 'billing' => 'b', 'admin' => 'a', 'password' => 'password'], $command->payload());
+    }
+
+    public function test_update_nameservers_uses_documented_action_payload_and_checksum(): void
+    {
+        $data = new UpdateNameserversData('example.com', [' NS1.Example.NET ', 'ns2.example.net']);
+        $command = new UpdateDomainDnsCommand($data, 0);
+        $auth = new OnlineNicAuthenticator('123', 'secret');
+
+        $this->assertSame('UpdateDomainDns', $command->action());
+        $this->assertSame(['domaintype' => 0, 'domain' => 'example.com', 'nameserver' => ['ns1.example.net', 'ns2.example.net']], $command->payload());
+        $this->assertSame(md5('123'.md5('secret').'tx'.'updatedomaindns'.'0'.'example.com'), $auth->requestChecksum('tx', $command->action(), $command->payload()));
+        $xml = (new OnlineNicXmlBuilder)->build('domain', $command->action(), $command->payload(), 'tx', 'checksum');
+        $this->assertSame(2, substr_count($xml, '<param name="nameserver">'));
+        $this->assertStringNotContainsString('<param name="A">', $xml);
     }
 
     public function test_transaction_ids_are_unique_and_provider_safe(): void

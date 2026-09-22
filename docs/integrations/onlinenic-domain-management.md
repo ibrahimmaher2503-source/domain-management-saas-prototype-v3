@@ -1,0 +1,9 @@
+# OnlineNIC domain information and nameservers
+
+For an owned local Domain, `SyncDomainFromRegistrar` reads `InfoDomain` through `RegistrarGateway`. A confirmed response updates only supplied, valid registration/expiry dates, nameservers, and provider status; omitted values keep their last known value or remain unknown. A successful read sets `provider_synced_at` and creates a customer-safe `domain_sync` activity entry. Manual refresh is owner-only and returns a generic error if the provider is unavailable.
+
+`ChangeDomainNameservers` accepts 2–6 unique, valid hostnames normalized to lowercase. Before the registrar write, it persists a `RegistrarOperation` with `operation=update_nameservers`, `status=pending`, a unique `cltrid`, and only the requested nameservers in safe metadata. The OnlineNIC adapter maps this to `UpdateDomainDns` with `domaintype`, `domain`, and repeated `nameserver` parameters. Its documented checksum uses only `domaintype` and `domain` after the action token. No automatic write retry is configured.
+
+A confirmed write completes the operation, then attempts `InfoDomain` to refresh local state. If the read fails, the write remains completed and a later manual refresh can update local data. An ambiguous write is not repeated: `InfoDomain` is used to compare the requested nameservers with the registrar's current set. A match completes the operation and updates the Domain; a mismatch or failed read leaves it ambiguous and blocks further nameserver writes until reconciled. Customer Activity shows business labels only, never provider transaction IDs, codes, messages, or raw XML.
+
+`UpdateDomainDns` changes registrar nameserver delegation. It does **not** edit DNS zone records. The separate DNS tab remains not connected; A, AAAA, CNAME, MX, TXT and other record CRUD require a future provider-neutral DNS integration. No live nameserver mutation is authorized by automated tests.

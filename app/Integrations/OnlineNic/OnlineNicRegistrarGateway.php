@@ -12,13 +12,16 @@ use App\Domain\Registrar\DTOs\DomainInfo;
 use App\Domain\Registrar\DTOs\DomainPrice;
 use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
+use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Commands\CheckContactCommand;
 use App\Integrations\OnlineNic\Commands\CheckDomainCommand;
 use App\Integrations\OnlineNic\Commands\CreateContactCommand;
 use App\Integrations\OnlineNic\Commands\CreateDomainCommand;
 use App\Integrations\OnlineNic\Commands\GetDomainPriceCommand;
 use App\Integrations\OnlineNic\Commands\InfoDomainCommand;
+use App\Integrations\OnlineNic\Commands\UpdateDomainDnsCommand;
 use App\Integrations\OnlineNic\Exceptions\InvalidProviderResponse;
 use App\Integrations\OnlineNic\Exceptions\ProviderAmbiguousResponse;
 
@@ -104,6 +107,15 @@ final class OnlineNicRegistrarGateway implements RegistrarGateway
         $nameservers = is_array($dns) ? array_values(array_map('strval', $dns)) : ($dns === '' ? [] : [(string) $dns]);
 
         return new DomainInfo($confirmedDomain, $this->stringValue($response->data['crDate'] ?? null), $this->stringValue($response->data['exDate'] ?? null), $nameservers, $this->stringValue($response->data['status'] ?? null), $response->cltrid, $response->svtrid, $response->code, $response->message);
+    }
+
+    public function updateNameservers(UpdateNameserversData $data, string $cltrid): OperationResult
+    {
+        $this->client->ensureAuthenticated();
+        $response = $this->client->execute(new UpdateDomainDnsCommand($data, $this->tlds->domainType($data->domain)), $cltrid);
+        $this->requireCompletedWrite($response, $cltrid);
+
+        return new OperationResult($response->cltrid, $response->svtrid, $response->code, $response->message);
     }
 
     private function requireCompletedWrite(OnlineNicResponse $response, string $cltrid): void

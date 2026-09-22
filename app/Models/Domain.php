@@ -7,12 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'order_id', 'name', 'tld', 'provider', 'status', 'registered_at', 'expires_at', 'auto_renew', 'transfer_locked', 'privacy_status', 'nameservers', 'provider_status'])]
+#[Fillable(['user_id', 'order_id', 'name', 'tld', 'provider', 'status', 'registered_at', 'expires_at', 'auto_renew', 'transfer_locked', 'privacy_status', 'nameservers', 'provider_status', 'provider_synced_at'])]
 class Domain extends Model
 {
     protected function casts(): array
     {
-        return ['registered_at' => 'date', 'expires_at' => 'date', 'auto_renew' => 'boolean', 'transfer_locked' => 'boolean', 'nameservers' => 'array'];
+        return ['registered_at' => 'date', 'expires_at' => 'date', 'auto_renew' => 'boolean', 'transfer_locked' => 'boolean', 'nameservers' => 'array', 'provider_synced_at' => 'datetime'];
     }
 
     public function user(): BelongsTo

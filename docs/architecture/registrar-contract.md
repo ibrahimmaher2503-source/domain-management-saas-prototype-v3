@@ -9,6 +9,7 @@ checkDomain(CheckDomainData): DomainAvailability
 getDomainPrice(DomainPriceQuery): DomainPrice
 getDomainInfo(domain): DomainInfo
 registerDomain(DomainRegistrationData): RegistrationResult
+updateNameservers(UpdateNameserversData, cltrid): OperationResult
 ```
 
 Registrar contact IDs for registration are platform-owned backend configuration. Customer billing data is separate and never becomes an OnlineNIC contact. Customer contact management is not in v1. Low-level OnlineNIC contact commands may remain isolated but are not part of the active gateway contract or registration flow.
@@ -17,7 +18,6 @@ Registrar contact IDs for registration are platform-owned backend configuration.
 
 ```text
 renewDomain(RenewDomainData): RenewalResult
-updateNameservers(UpdateNameserversData): OperationResult
 getAuthCode(DomainLookup): AuthCodeResult
 setTransferLock(TransferLockData): OperationResult
 getTransferStatus(TransferLookup): TransferStatus

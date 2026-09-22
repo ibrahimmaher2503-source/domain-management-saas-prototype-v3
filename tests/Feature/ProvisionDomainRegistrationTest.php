@@ -9,7 +9,9 @@ use App\Domain\Registrar\DTOs\DomainInfo;
 use App\Domain\Registrar\DTOs\DomainPrice;
 use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
+use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Exceptions\ProviderAmbiguousResponse;
 use App\Integrations\OnlineNic\Exceptions\ProviderRejectedOperation;
 use App\Integrations\OnlineNic\OnlineNicTransactionIdGenerator;
@@ -222,6 +224,11 @@ final class PlatformRegistrarFake implements RegistrarGateway
         }
 
         return new DomainInfo($domain, '2026-09-22', '2028-09-22', ['ns1.example.net', 'ns2.example.net'], 'active', 'info', 'srv-info', 1000, 'OK');
+    }
+
+    public function updateNameservers(UpdateNameserversData $data, string $cltrid): OperationResult
+    {
+        throw new \LogicException('Unexpected nameserver write.');
     }
 
     public function createContact(): never

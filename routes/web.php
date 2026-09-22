@@ -29,6 +29,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('/orders/{order}/pay', [PaymentController::class, 'pay'])->name('orders.pay');
     Route::get('/domains/{domain}', [DomainController::class, 'show'])->name('domains.show');
+    Route::post('/domains/{domain}/sync', [DomainController::class, 'sync'])->name('domains.sync');
+    Route::put('/domains/{domain}/nameservers', [DomainController::class, 'updateNameservers'])->name('domains.nameservers.update');
     Route::get('/transfers', fn () => Inertia::render('Transfers/Index'))->name('transfers');
     Route::get('/ssl', fn () => Inertia::render('SSL/Index'))->name('ssl');
     Route::get('/billing', fn () => Inertia::render('Billing/Index'))->name('billing');

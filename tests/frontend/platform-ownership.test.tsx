@@ -28,10 +28,10 @@ describe('platform-owned registrar contacts', () => {
         render(<DomainShow domain={{ id: 1, name: 'example.com', status: 'active', registered_at: '2026-09-22', expires_at: '2027-09-22', nameservers: ['ns1.example.net', 'ns2.example.net'], provider_status: null }} />);
 
         expect(screen.queryByText('Registrant')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Contacts' })).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Nameservers' }));
+        expect(screen.queryByRole('tab', { name: 'Contacts' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('tab', { name: 'Nameservers' }));
         expect(screen.getByText(/delegated/)).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'DNS' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'DNS' }));
         expect(screen.getByText('DNS is not hosted by this platform.')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Connect DNS' })).toBeInTheDocument();
     });
@@ -43,7 +43,7 @@ describe('platform-owned registrar contacts', () => {
         expect(screen.getByText('ns1.example.net, ns2.example.net')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Refresh domain' }));
         expect(router.post).toHaveBeenCalledWith('/domains.sync', {}, expect.any(Object));
-        fireEvent.click(screen.getByRole('button', { name: 'Activity' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'Activity' }));
         expect(screen.getByText('Domain registered')).toBeInTheDocument();
         expect(screen.getByText('Domain synced')).toBeInTheDocument();
         expect(screen.queryByText(/cltrid|svtrid|provider code|password/i)).not.toBeInTheDocument();
@@ -51,7 +51,7 @@ describe('platform-owned registrar contacts', () => {
 
     it('requires confirmation before submitting a nameserver change', () => {
         render(<DomainShow domain={{ id: 1, name: 'example.com', status: 'active', registered_at: null, expires_at: null, nameservers: ['ns1.example.net', 'ns2.example.net'], provider_status: null }} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Nameservers' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'Nameservers' }));
         fireEvent.click(screen.getByRole('button', { name: 'Edit Nameservers' }));
         expect(screen.getByText(/DNS services at the previous provider may stop working/)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();

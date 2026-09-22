@@ -35,9 +35,9 @@ describe('migrated customer UI', () => {
     it('renders every Domain Control Center section', () => {
         const onChange = vi.fn();
         render(<DomainTabs active="Overview" onChange={onChange} />);
-        for (const tab of ['Overview', 'Nameservers', 'DNS', 'Security', 'Renewal', 'Transfers', 'SSL', 'Billing', 'Activity']) expect(screen.getByRole('button', { name: tab })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Contacts' })).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Security' }));
+        for (const tab of ['Overview', 'Nameservers', 'DNS', 'Security', 'Renewal', 'Transfers', 'SSL', 'Billing', 'Activity']) expect(screen.getByRole('tab', { name: tab })).toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: 'Contacts' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('tab', { name: 'Security' }));
         expect(onChange).toHaveBeenCalledWith('Security');
     });
 

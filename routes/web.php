@@ -14,24 +14,26 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReadinessController;
 use App\Http\Controllers\SslController;
 use App\Http\Controllers\TransferController;
-use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+Route::get('/', fn (Request $request) => redirect()->route($request->user() ? 'overview' : 'login'));
 
 Route::get('/health/ready', ReadinessController::class)->name('health.ready');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/overview', fn () => Inertia::render('Overview/Index'))->name('overview');
-    Route::get('/dashboard', fn () => Inertia::render('Overview/Index'))->name('dashboard');
+    Route::get('/overview', function (Request $request) {
+        $domains = $request->user()->domains()->latest()->get();
+
+        return Inertia::render('Overview/Index', ['metrics' => [
+            'total' => $domains->count(),
+            'active' => $domains->where('status', 'active')->count(),
+            'expiring' => $domains->filter(fn ($domain) => $domain->expires_at?->between(today(), today()->addDays(30)))->count(),
+            'transfers' => $request->user()->transfers()->whereIn('status', ['pending', 'processing', 'action_required'])->count(),
+        ], 'domains' => $domains->take(5)->map(fn ($domain) => ['id' => $domain->id, 'name' => $domain->name, 'status' => $domain->status, 'expires_at' => $domain->expires_at?->toDateString()])->values()]);
+    })->name('overview');
+    Route::redirect('/dashboard', '/overview')->name('dashboard');
     Route::get('/domains', [DomainController::class, 'index'])->name('domains');
     Route::get('/domains/search', [DomainSearchController::class, 'show'])->middleware('throttle:30,1')->name('domains.search');
     Route::get('/checkout/domain', [DomainCheckoutController::class, 'create'])->name('checkout.domain');
@@ -66,15 +68,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/ssl/{certificate}/resend-approver-email', [SslController::class, 'resendApproverEmail'])->middleware('throttle:5,1')->name('ssl.resend-approver-email');
     Route::post('/ssl/{certificate}/reissue', [SslController::class, 'reissue'])->middleware('throttle:5,1')->name('ssl.reissue');
     Route::post('/ssl/{certificate}/resend-fulfillment-email', [SslController::class, 'resendFulfillmentEmail'])->middleware('throttle:5,1')->name('ssl.resend-fulfillment-email');
-    Route::get('/billing', fn () => Inertia::render('Billing/Index'))->name('billing');
+    Route::get('/billing', fn (Request $request) => Inertia::render('Billing/Index', ['payments' => $request->user()->payments()->with('order:id,type,domain')->latest()->get(['id', 'order_id', 'status', 'amount', 'currency', 'paid_at', 'created_at'])]))->name('billing');
     Route::get('/settings', fn () => Inertia::render('Settings/Index'))->name('settings');
 });
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::get('/', [AdminController::class, 'overview'])->name('overview');
     Route::get('/customers', [AdminController::class, 'customers'])->name('customers');
+    Route::get('/customers/create', [AdminController::class, 'createCustomer'])->name('customers.create');
+    Route::post('/customers', [AdminController::class, 'storeCustomer'])->name('customers.store');
     Route::get('/customers/{customer}', [AdminController::class, 'customer'])->name('customers.show');
+    Route::post('/customers/{customer}/activation', [AdminController::class, 'regenerateActivation'])->name('customers.activation');
     Route::get('/domains', [AdminController::class, 'domains'])->name('domains');
+    Route::get('/domains/import', [AdminController::class, 'importDomain'])->name('domains.import');
+    Route::post('/domains/import', [AdminController::class, 'storeImportedDomain'])->name('domains.import.store');
     Route::get('/domains/{domain}', [AdminController::class, 'domain'])->name('domains.show');
     Route::get('/orders', [AdminController::class, 'orders'])->name('orders');
     Route::get('/orders/{order}', [AdminController::class, 'order'])->name('orders.show');

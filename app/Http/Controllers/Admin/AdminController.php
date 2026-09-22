@@ -3,17 +3,27 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Admin\AdminQueryService;
+use App\Domain\Domains\Exceptions\DomainImportException;
+use App\Domain\Domains\Services\ImportDomainForCustomer;
 use App\Domain\Registrar\Contracts\RegistrarGateway;
 use App\Http\Controllers\Controller;
 use App\Integrations\OnlineNic\OnlineNicAccountService;
+use App\Models\AdminAuditLog;
 use App\Models\Domain;
 use App\Models\Order;
 use App\Models\SslCertificate;
 use App\Models\Transfer;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
 use Throwable;
 
 final class AdminController extends Controller
@@ -30,11 +40,34 @@ final class AdminController extends Controller
         return Inertia::render('Admin/Table', $this->queries->customers($request) + ['resource' => 'customers', 'title' => 'Customers']);
     }
 
+    public function createCustomer(): Response
+    {
+        return Inertia::render('Admin/CreateCustomer');
+    }
+
+    public function storeCustomer(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['name' => ['required', 'string', 'max:120'], 'email' => ['required', 'email', 'max:255', 'unique:users,email']]);
+        $customer = User::create(['name' => $data['name'], 'email' => $data['email'], 'password' => Hash::make(Str::random(64)), 'activation_pending' => true]);
+        AdminAuditLog::create(['admin_user_id' => $request->user()->id, 'action' => 'customer.created', 'resource_type' => 'customer', 'resource_id' => $customer->id, 'safe_metadata' => ['customer_id' => $customer->id]]);
+        $link = $this->activationLink($customer, $request->user());
+
+        return redirect()->route('admin.customers.show', $customer)->with(['activation_link' => $link, 'activation_expires_at' => now()->addMinutes((int) config('auth.passwords.users.expire', 60))->toIso8601String()]);
+    }
+
     public function customer(User $customer): Response
     {
         abort_if($customer->is_admin, 404);
 
-        return Inertia::render('Admin/Detail', $this->queries->customer($customer) + ['resource' => 'customer', 'title' => $customer->name]);
+        return Inertia::render('Admin/Detail', $this->queries->customer($customer) + ['resource' => 'customer', 'title' => $customer->name, 'activation_link' => session('activation_link'), 'activation_expires_at' => session('activation_expires_at')]);
+    }
+
+    public function regenerateActivation(Request $request, User $customer): RedirectResponse
+    {
+        abort_if($customer->is_admin, 404);
+        $link = $this->activationLink($customer, $request->user());
+
+        return back()->with(['activation_link' => $link, 'activation_expires_at' => now()->addMinutes((int) config('auth.passwords.users.expire', 60))->toIso8601String()]);
     }
 
     public function domains(Request $request): Response
@@ -42,9 +75,35 @@ final class AdminController extends Controller
         return Inertia::render('Admin/Table', $this->queries->domains($request) + ['resource' => 'domains', 'title' => 'Domains']);
     }
 
+    public function importDomain(Request $request): Response
+    {
+        return Inertia::render('Admin/ImportDomain', ['customers' => User::query()->where('is_admin', false)->orderBy('name')->get(['id', 'name', 'email']), 'selected_customer_id' => $request->integer('customer_id') ?: null]);
+    }
+
+    public function storeImportedDomain(Request $request, ImportDomainForCustomer $importer): RedirectResponse
+    {
+        $data = $request->validate([
+            'domain' => ['required', 'string', 'max:253'],
+            'provider' => ['required', Rule::in(['onlinenic'])],
+            'customer_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where(fn ($query) => $query->where('is_admin', false))],
+            'new_customer_name' => ['required_without:customer_id', 'nullable', 'string', 'max:120'],
+            'new_customer_email' => ['required_without:customer_id', 'nullable', 'email', 'max:255', 'unique:users,email'],
+            'note' => ['nullable', 'string', 'max:500', 'not_regex:/password|epp|auth.?code|credential/i'],
+        ]);
+        $customer = isset($data['customer_id']) ? User::findOrFail($data['customer_id']) : null;
+        $newCustomer = $customer ? null : ['name' => $data['new_customer_name'], 'email' => $data['new_customer_email']];
+        try {
+            $result = $importer->import($data['domain'], $customer, $newCustomer, $request->user(), $data['note'] ?? null);
+        } catch (DomainImportException|InvalidArgumentException $exception) {
+            return back()->withInput()->withErrors(['domain' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('admin.domains.show', $result['domain'])->with(['activation_link' => $result['activationLink']]);
+    }
+
     public function domain(Domain $domain): Response
     {
-        return Inertia::render('Admin/Detail', $this->queries->domain($domain) + ['resource' => 'domain', 'title' => $domain->name]);
+        return Inertia::render('Admin/Detail', $this->queries->domain($domain) + ['resource' => 'domain', 'title' => $domain->name, 'activation_link' => session('activation_link')]);
     }
 
     public function orders(Request $request): Response
@@ -105,5 +164,13 @@ final class AdminController extends Controller
     public function pricing(Request $request, RegistrarGateway $registrar): Response
     {
         return Inertia::render('Admin/Pricing', $this->queries->pricing($request, $registrar));
+    }
+
+    private function activationLink(User $customer, User $admin): string
+    {
+        $token = Password::broker()->createToken($customer);
+        AdminAuditLog::create(['admin_user_id' => $admin->id, 'action' => 'customer.activation_link.generated', 'resource_type' => 'customer', 'resource_id' => $customer->id, 'safe_metadata' => ['customer_id' => $customer->id]]);
+
+        return URL::route('password.reset', ['token' => $token, 'email' => $customer->email]);
     }
 }

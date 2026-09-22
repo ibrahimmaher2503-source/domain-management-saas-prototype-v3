@@ -1,6 +1,12 @@
-import AppLayout from '@/Layouts/AppLayout';
+import EmptyState from '@/Components/EmptyState';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
-import { billingItems } from '@/mocks/billing';
+import AppLayout from '@/Layouts/AppLayout';
 
-export default function Index() { return <AppLayout title="Billing"><PageHeader eyebrow="Account" title="Billing" description="Payment method and recent domain-related charges." /><div className="mb-6 grid gap-4 md:grid-cols-2"><section className="rounded-xl border border-[#e5e5e5] bg-white p-5"><p className="text-xs text-[#737373]">Payment method</p><p className="mt-2 font-semibold">Visa ending in 4242</p><p className="mt-1 text-sm text-[#737373]">Expires 08/29 · mock presentation</p><button data-mock-action className="mt-4 rounded-md border border-[#d4d4d4] px-3 py-2 text-sm font-medium">Update payment method</button></section><section className="rounded-xl border border-[#e5e5e5] bg-white p-5"><p className="text-xs text-[#737373]">Next renewal</p><p className="mt-2 font-semibold">northstar.io · $42.00</p><p className="mt-1 text-sm text-[#737373]">Sep 26, 2026</p></section></div><section className="overflow-hidden rounded-xl border border-[#e5e5e5] bg-white"><div className="border-b border-[#e5e5e5] px-5 py-4"><h2 className="font-semibold">Billing history</h2></div><div className="divide-y divide-[#e5e5e5]">{billingItems.map((item) => <div className="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_auto] sm:items-center" key={item.id}><div><p className="font-medium">{item.description}</p><p className="text-sm text-[#737373]">{item.domain} · {item.date}</p></div><p className="font-medium">{item.amount}</p><StatusBadge status={item.status} /></div>)}</div></section></AppLayout>; }
+type Payment = { id: number; status: string; amount: string; currency: string; paid_at: string | null; created_at: string; order?: { type: string; domain: string } | null };
+
+export default function Index({ payments }: { payments: Payment[] }) {
+    return <AppLayout title="Billing"><PageHeader eyebrow="Account" title="Billing" description="Review payments for domains, renewals, transfers, and SSL certificates." />
+        {payments.length ? <section className="overflow-hidden rounded-xl border bg-white"><div className="border-b px-5 py-4"><h2 className="font-semibold">Payment history</h2></div><div className="divide-y">{payments.map(payment => <div className="grid gap-3 px-5 py-4 text-sm sm:grid-cols-[1fr_auto_auto] sm:items-center" key={payment.id}><div className="min-w-0"><p className="truncate font-medium">{payment.order?.domain ?? 'Account payment'}</p><p className="text-neutral-600">{payment.order?.type?.replaceAll('_', ' ') ?? 'Payment'} · {new Date(payment.paid_at ?? payment.created_at).toLocaleDateString()}</p></div><p className="font-medium tabular-nums">{payment.amount} {payment.currency}</p><StatusBadge status={payment.status} /></div>)}</div></section> : <EmptyState title="No payments yet" description="Completed and pending payments will appear here." />}
+    </AppLayout>;
+}

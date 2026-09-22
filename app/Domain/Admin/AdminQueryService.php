@@ -65,7 +65,7 @@ final class AdminQueryService
 
     public function customer(User $customer): array
     {
-        return ['customer' => $customer->only(['id', 'name', 'email', 'created_at']), 'related' => [
+        return ['customer' => $customer->only(['id', 'name', 'email', 'activation_pending', 'created_at']), 'related' => [
             'domains' => $customer->domains()->latest()->limit(25)->get(['id', 'name', 'status', 'expires_at', 'provider']),
             'orders' => $customer->orders()->latest()->limit(25)->get(['id', 'type', 'domain', 'status', 'customer_price', 'currency', 'created_at']),
             'payments' => $customer->payments()->latest()->limit(25)->get(['id', 'order_id', 'provider', 'status', 'amount', 'currency', 'paid_at', 'failed_at']),
@@ -96,10 +96,10 @@ final class AdminQueryService
 
     public function domain(Domain $domain): array
     {
-        $domain->load(['user:id,name,email', 'order:id,type,status,customer_price,currency', 'dnsZone:id,domain_id,provider,status,provider_status,provider_synced_at']);
+        $domain->load(['user:id,name,email', 'importedByAdmin:id,name', 'order:id,type,status,customer_price,currency', 'dnsZone:id,domain_id,provider,status,provider_status,provider_synced_at']);
 
-        return ['domain' => $domain->only(['id', 'name', 'status', 'provider', 'provider_status', 'registered_at', 'expires_at', 'nameservers', 'transfer_locked', 'provider_synced_at']) + [
-            'customer' => $domain->user, 'registration_order' => $domain->order, 'dns' => $domain->dnsZone,
+        return ['domain' => $domain->only(['id', 'name', 'status', 'provider', 'imported_at', 'internal_note', 'provider_status', 'registered_at', 'expires_at', 'nameservers', 'transfer_locked', 'provider_synced_at']) + [
+            'acquisition' => $domain->acquisition_source === 'admin_import' ? 'Admin import' : 'Platform checkout', 'customer' => $domain->user, 'imported_by' => $domain->importedByAdmin?->name, 'registration_order' => $domain->order, 'dns' => $domain->dnsZone,
         ], 'related' => [
             'renewals' => $domain->renewalOrders()->where('type', 'domain_renewal')->latest()->limit(25)->get(['id', 'status', 'customer_price', 'currency', 'created_at']),
             'transfers' => $domain->transfers()->latest()->limit(25)->get(['id', 'direction', 'status', 'provider_status', 'updated_at']),
@@ -196,7 +196,7 @@ final class AdminQueryService
     public function providers(): array
     {
         return ['providers' => [
-            'onlinenic' => ['configured' => $this->configured(['onlinenic.client_id', 'onlinenic.password']), 'endpoint' => config('onlinenic.host').':'.config('onlinenic.port'), 'currency' => config('onlinenic.account_currency'), 'contacts_configured' => $this->configured(['onlinenic.registrant_contact_id', 'onlinenic.admin_contact_id', 'onlinenic.tech_contact_id', 'onlinenic.billing_contact_id']), 'last_success' => RegistrarOperation::where('provider', 'onlinenic')->where('status', 'completed')->max('completed_at')],
+            'onlinenic' => ['configured' => $this->configured(['onlinenic.client_id', 'onlinenic.password']), 'environment' => config('app.env'), 'currency' => config('onlinenic.account_currency'), 'contacts_configured' => $this->configured(['onlinenic.registrant_contact_id', 'onlinenic.admin_contact_id', 'onlinenic.tech_contact_id', 'onlinenic.billing_contact_id']), 'last_success' => RegistrarOperation::where('provider', 'onlinenic')->where('status', 'completed')->max('completed_at')],
             'paymob' => ['configured' => $this->configured(['paymob.secret_key', 'paymob.public_key', 'paymob.hmac_secret']), 'mode' => config('paymob.mode'), 'integration_configured' => filled(config('paymob.card_integration_id')), 'last_success' => Payment::where('provider', 'paymob')->where('status', 'paid')->max('paid_at')],
             'cloudflare' => ['configured' => $this->configured(['cloudflare.api_token']), 'account_configured' => filled(config('cloudflare.account_id')), 'token_configured' => filled(config('cloudflare.api_token')), 'last_success' => DB::table('dns_zones')->where('status', 'active')->max('provider_synced_at')],
         ]];

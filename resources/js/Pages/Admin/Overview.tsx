@@ -1,0 +1,10 @@
+import AdminLayout from '@/Layouts/AdminLayout';
+import { Link } from '@inertiajs/react';
+
+const labels: Record<string, string> = { customers: 'Total customers', domains: 'Total domains', active_domains: 'Active domains', expiring_7_days: 'Expiring in 7 days', expiring_30_days: 'Expiring in 30 days', pending_transfers: 'Pending transfers', pending_ssl: 'Pending SSL', awaiting_payment_orders: 'Awaiting payment', provisioning_orders: 'Provisioning', failed_orders: 'Failed orders', external_attention: 'Needs review' };
+
+function subject(row: any) { return typeof row.domain === 'string' ? row.domain : row.domain?.name ?? `#${row.id}`; }
+
+export default function Overview({ metrics, recent }: { metrics: Record<string, number>; recent: Record<string, any[]> }) {
+    return <AdminLayout title="Overview"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">{Object.entries(metrics).map(([key, value]) => <div key={key} className={`rounded-xl border bg-white p-4 ${['failed_orders', 'external_attention'].includes(key) && value ? 'border-amber-300' : ''}`}><p className="text-xs text-neutral-500">{labels[key] ?? key}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{value}</p></div>)}</div><div className="mt-6 grid gap-4 lg:grid-cols-2">{Object.entries(recent).map(([key, rows]) => <section key={key} className="rounded-xl border bg-white"><div className="border-b px-4 py-3 text-sm font-semibold capitalize">Recent {key}</div><div className="divide-y">{rows.length ? rows.map((row: any) => <div key={row.id} className="flex items-center justify-between px-4 py-3 text-sm"><div><p className="font-medium">{subject(row)}</p><p className="text-xs text-neutral-500">{row.user?.name ?? row.currency ?? 'Customer activity'}</p></div><span className="rounded-full bg-neutral-100 px-2 py-1 text-xs">{row.status ?? row.amount}</span></div>) : <p className="p-4 text-sm text-neutral-500">No activity yet.</p>}</div></section>)}</div><Link href={route('admin.operations')} className="mt-6 inline-flex rounded-lg bg-black px-4 py-2 text-sm text-white">Open operations queue</Link></AdminLayout>;
+}

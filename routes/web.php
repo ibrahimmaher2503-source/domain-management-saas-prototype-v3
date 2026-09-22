@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminActionController;
+use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\DomainCheckoutController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainDnsController;
@@ -63,6 +65,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/ssl/{certificate}/resend-fulfillment-email', [SslController::class, 'resendFulfillmentEmail'])->name('ssl.resend-fulfillment-email');
     Route::get('/billing', fn () => Inertia::render('Billing/Index'))->name('billing');
     Route::get('/settings', fn () => Inertia::render('Settings/Index'))->name('settings');
+});
+
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified', 'admin'])->group(function () {
+    Route::get('/', [AdminController::class, 'overview'])->name('overview');
+    Route::get('/customers', [AdminController::class, 'customers'])->name('customers');
+    Route::get('/customers/{customer}', [AdminController::class, 'customer'])->name('customers.show');
+    Route::get('/domains', [AdminController::class, 'domains'])->name('domains');
+    Route::get('/domains/{domain}', [AdminController::class, 'domain'])->name('domains.show');
+    Route::get('/orders', [AdminController::class, 'orders'])->name('orders');
+    Route::get('/orders/{order}', [AdminController::class, 'order'])->name('orders.show');
+    Route::get('/payments', [AdminController::class, 'payments'])->name('payments');
+    Route::get('/transfers', [AdminController::class, 'transfers'])->name('transfers');
+    Route::get('/transfers/{transfer}', [AdminController::class, 'transfer'])->name('transfers.show');
+    Route::get('/ssl', [AdminController::class, 'ssl'])->name('ssl');
+    Route::get('/ssl/{certificate}', [AdminController::class, 'certificate'])->name('ssl.show');
+    Route::get('/operations', [AdminController::class, 'operations'])->name('operations');
+    Route::post('/reconcile/{type}/{id}', [AdminActionController::class, 'reconcile'])->name('reconcile');
+    Route::get('/providers', [AdminController::class, 'providers'])->name('providers');
+    Route::post('/providers/onlinenic/balance', [AdminActionController::class, 'refreshBalance'])->name('providers.balance');
+    Route::get('/pricing', [AdminController::class, 'pricing'])->name('pricing');
 });
 
 Route::post('/payments/paymob/callback', [PaymentController::class, 'callback'])->name('payments.paymob.callback');

@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['user_id', 'order_id', 'domain_id', 'provider', 'operation', 'cltrid', 'svtrid', 'status', 'provider_code', 'provider_message', 'safe_request_metadata', 'provider_metadata', 'started_at', 'completed_at'])]
 class RegistrarOperation extends Model
 {
+    protected $hidden = ['cltrid', 'svtrid', 'provider_message', 'provider_metadata'];
+
     protected function casts(): array
     {
         return ['safe_request_metadata' => 'array', 'provider_metadata' => 'array', 'started_at' => 'datetime', 'completed_at' => 'datetime'];

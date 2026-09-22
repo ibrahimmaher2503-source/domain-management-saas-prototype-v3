@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DomainCheckoutController;
 use App\Http\Controllers\DomainController;
+use App\Http\Controllers\DomainDnsController;
 use App\Http\Controllers\DomainSearchController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
@@ -31,6 +32,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/domains/{domain}', [DomainController::class, 'show'])->name('domains.show');
     Route::post('/domains/{domain}/sync', [DomainController::class, 'sync'])->name('domains.sync');
     Route::put('/domains/{domain}/nameservers', [DomainController::class, 'updateNameservers'])->name('domains.nameservers.update');
+    Route::post('/domains/{domain}/dns/connect', [DomainDnsController::class, 'connect'])->name('domains.dns.connect');
+    Route::post('/domains/{domain}/dns/sync', [DomainDnsController::class, 'sync'])->name('domains.dns.sync');
+    Route::post('/domains/{domain}/dns/records', [DomainDnsController::class, 'store'])->name('domains.dns.records.store');
+    Route::patch('/domains/{domain}/dns/records/{record}', [DomainDnsController::class, 'update'])->name('domains.dns.records.update');
+    Route::delete('/domains/{domain}/dns/records/{record}', [DomainDnsController::class, 'destroy'])->name('domains.dns.records.destroy');
     Route::get('/transfers', fn () => Inertia::render('Transfers/Index'))->name('transfers');
     Route::get('/ssl', fn () => Inertia::render('SSL/Index'))->name('ssl');
     Route::get('/billing', fn () => Inertia::render('Billing/Index'))->name('billing');

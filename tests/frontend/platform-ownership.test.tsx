@@ -9,7 +9,7 @@ vi.stubGlobal('route', (name: string) => `/${name}`);
 vi.mock('@/Layouts/AppLayout', () => ({ default: ({ children }: { children: ReactNode }) => <>{children}</> }));
 vi.mock('@inertiajs/react', async () => {
     const actual = await vi.importActual<typeof import('@inertiajs/react')>('@inertiajs/react');
-    return { ...actual, Head: () => null, Link: ({ children, href }: { children: ReactNode; href: string }) => <a href={href}>{children}</a>, router: { post: vi.fn(), put: vi.fn() }, useForm: (data: object) => ({ data, setData: vi.fn(), post: vi.fn(), processing: false }) };
+    return { ...actual, Head: () => null, Link: ({ children, href }: { children: ReactNode; href: string }) => <a href={href}>{children}</a>, router: { get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() }, useForm: (data: object) => ({ data, setData: vi.fn(), post: vi.fn(), processing: false }) };
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
@@ -32,8 +32,8 @@ describe('platform-owned registrar contacts', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Nameservers' }));
         expect(screen.getByText(/delegated/)).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'DNS' }));
-        expect(screen.getByText(/DNS zone management is not connected yet/)).toBeInTheDocument();
-        expect(screen.getByText(/DNS records such as A, AAAA, CNAME, MX and TXT/)).toBeInTheDocument();
+        expect(screen.getByText('DNS is not hosted by this platform.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Connect DNS' })).toBeInTheDocument();
     });
 
     it('shows real overview and safe activity without provider internals', () => {

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Dns\Exceptions\DnsProviderException;
+use App\Domain\Dns\Services\ManageDnsRecords;
 use App\Domain\Domains\Services\ChangeDomainNameservers;
 use App\Domain\Domains\Services\SyncDomainFromRegistrar;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
@@ -22,7 +24,7 @@ final class DomainController extends Controller
         return Inertia::render('Domains/Index', ['domains' => $domains]);
     }
 
-    public function show(Request $request, Domain $domain): Response
+    public function show(Request $request, Domain $domain, ManageDnsRecords $records, SyncDomainFromRegistrar $registrarSync): Response
     {
         abort_unless($domain->user_id === $request->user()->id, 404);
 
@@ -41,7 +43,26 @@ final class DomainController extends Controller
             'at' => $operation->completed_at?->toIso8601String() ?? $operation->started_at?->toIso8601String(),
         ]);
 
-        return Inertia::render('Domains/Show', ['domain' => $this->summary($domain), 'activity' => $activity, 'notice' => session('domain_notice'), 'error' => session('domain_error')]);
+        $zone = $domain->dnsZone;
+        $dnsRecords = [];
+        $dnsError = null;
+        if ($request->query('tab') === 'dns' && $zone?->status === 'active') {
+            try {
+                $dnsRecords = $records->records($zone);
+            } catch (DnsProviderException) {
+                $dnsError = 'DNS records could not be loaded. Please try again later.';
+            }
+        }
+        $dnsActivity = $zone?->operations()->where('status', 'completed')->latest()->limit(20)->get()->map(static fn ($item): array => [
+            'id' => 'dns-'.$item->id,
+            'label' => $item->operation === 'zone_activated' ? 'DNS zone activated' : ($item->operation === 'connect' ? 'DNS connected' : ($item->record_type.' record '.match ($item->operation) {
+                'create' => 'added', 'update' => 'updated', default => 'deleted'
+            })),
+            'status' => $item->status,
+            'at' => $item->updated_at?->toIso8601String(),
+        ])->all() ?? [];
+
+        return Inertia::render('Domains/Show', ['domain' => $this->summary($domain), 'dnsZone' => $zone ? ['status' => $zone->status, 'assigned_nameservers' => $zone->assigned_nameservers, 'provider_synced_at' => $zone->provider_synced_at?->toIso8601String(), 'delegated' => $registrarSync->sameNameservers($domain->nameservers ?? [], $zone->assigned_nameservers ?? []), 'ambiguous' => $zone->operations()->whereIn('status', ['pending', 'ambiguous'])->exists()] : null, 'dnsRecords' => $dnsRecords, 'dnsError' => $dnsError, 'initialTab' => $request->query('tab') === 'dns' ? 'DNS' : 'Overview', 'activity' => collect(array_merge($activity->all(), $dnsActivity))->sortByDesc('at')->take(20)->values()->all(), 'notice' => session('domain_notice'), 'error' => session('domain_error')]);
     }
 
     public function sync(Request $request, Domain $domain, SyncDomainFromRegistrar $sync): RedirectResponse

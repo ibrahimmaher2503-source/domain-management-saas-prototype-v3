@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable(['user_id', 'order_id', 'name', 'tld', 'provider', 'status', 'registered_at', 'expires_at', 'auto_renew', 'transfer_locked', 'privacy_status', 'nameservers', 'provider_status', 'provider_synced_at'])]
 class Domain extends Model
@@ -28,5 +29,10 @@ class Domain extends Model
     public function registrarOperations(): HasMany
     {
         return $this->hasMany(RegistrarOperation::class);
+    }
+
+    public function dnsZone(): HasOne
+    {
+        return $this->hasOne(DnsZone::class);
     }
 }

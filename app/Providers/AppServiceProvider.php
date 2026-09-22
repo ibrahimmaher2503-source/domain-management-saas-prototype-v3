@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Domain\Billing\Contracts\PaymentGateway;
+use App\Domain\Dns\Contracts\DnsProvider;
 use App\Domain\Registrar\Contracts\RegistrarGateway;
+use App\Integrations\Cloudflare\CloudflareDnsProvider;
 use App\Integrations\OnlineNic\OnlineNicAuthenticator;
 use App\Integrations\OnlineNic\OnlineNicClient;
 use App\Integrations\OnlineNic\OnlineNicRegistrarGateway;
@@ -21,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(DnsProvider::class, CloudflareDnsProvider::class);
         $this->app->singleton(PaymentGateway::class, fn () => new PaymobPaymentGateway(new PaymobClient));
         $this->app->singleton(RegistrarGateway::class, function () {
             $clientId = (string) config('onlinenic.client_id', '');

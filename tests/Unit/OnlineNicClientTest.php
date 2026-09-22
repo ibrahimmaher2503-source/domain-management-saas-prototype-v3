@@ -5,11 +5,15 @@ namespace Tests\Unit;
 use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Domain\Registrar\DTOs\RenewDomainData;
+use App\Domain\Registrar\DTOs\RequestTransferData;
 use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
+use App\Integrations\OnlineNic\Commands\CancelRegTransferCommand;
 use App\Integrations\OnlineNic\Commands\CreateDomainCommand;
 use App\Integrations\OnlineNic\Commands\GetAuthCodeCommand;
+use App\Integrations\OnlineNic\Commands\QueryRegTransferCommand;
 use App\Integrations\OnlineNic\Commands\RenewDomainCommand;
+use App\Integrations\OnlineNic\Commands\RequestRegTransferCommand;
 use App\Integrations\OnlineNic\Commands\UpdateDomainDnsCommand;
 use App\Integrations\OnlineNic\Commands\UpdateDomainStatusCommand;
 use App\Integrations\OnlineNic\Contracts\OnlineNicCommand;
@@ -100,6 +104,24 @@ final class OnlineNicClientTest extends TestCase
         $this->assertSame(md5('123'.md5('secret').'tx'.'updatedomainstatus'.'0'.'example.com'), $auth->requestChecksum('tx', $lock->action(), $lock->payload()));
         $this->assertSame('GetAuthcode', $code->action());
         $this->assertSame(md5('123'.md5('secret').'tx'.'getauthcode'.'0'.'example.com'), $auth->requestChecksum('tx', $code->action(), $code->payload()));
+    }
+
+    public function test_transfer_commands_use_only_documented_fields_and_checksums(): void
+    {
+        $auth = new OnlineNicAuthenticator('123', 'secret');
+        $commands = [new RequestRegTransferCommand(new RequestTransferData('example.com'), 0), new QueryRegTransferCommand('example.com', 0), new CancelRegTransferCommand('example.com', 0)];
+        $this->assertSame(['domaintype' => 0, 'domain' => 'example.com', 'mailway' => 'Off'], $commands[0]->payload());
+        $this->assertSame(['domaintype' => 0, 'domain' => 'example.com'], $commands[1]->payload());
+        $this->assertSame(['domaintype' => 0, 'domain' => 'example.com'], $commands[2]->payload());
+        foreach ($commands as $command) {
+            $this->assertSame(md5('123'.md5('secret').'tx'.strtolower($command->action()).'0'.'example.com'), $auth->requestChecksum('tx', $command->action(), $command->payload()));
+        }
+        $this->assertArrayNotHasKey('password', $commands[0]->payload());
+        $this->assertSame('pending', OnlineNicRegistrarGateway::normalizeTransferStatus('pendingTransfer'));
+        $this->assertSame('completed', OnlineNicRegistrarGateway::normalizeTransferStatus('transferSuccessfully'));
+        $this->assertSame('failed', OnlineNicRegistrarGateway::normalizeTransferStatus('clientRejected'));
+        $this->assertSame('cancelled', OnlineNicRegistrarGateway::normalizeTransferStatus('clientCanceled; client canceled'));
+        $this->assertSame('action_required', OnlineNicRegistrarGateway::normalizeTransferStatus('new-provider-state'));
     }
 
     public function test_domain_info_extra_normalizes_transfer_lock_and_auth_code(): void

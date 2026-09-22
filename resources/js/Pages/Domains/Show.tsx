@@ -4,6 +4,7 @@ import PageHeader from '@/Components/PageHeader';
 import DnsPanel from '@/Components/Domain/DnsPanel';
 import SecurityPanel from '@/Components/Domain/SecurityPanel';
 import RenewalPanel from '@/Components/Domain/RenewalPanel';
+import TransferPanel from '@/Components/Domain/TransferPanel';
 import { Head, Link, router } from '@inertiajs/react';
 import { FormEvent, useEffect, useState } from 'react';
 
@@ -13,7 +14,7 @@ type DnsZone = { status: string; assigned_nameservers: string[] | null; delegate
 type DnsRecord = { id: string; type: string; name: string; content?: string; data?: { priority?: number; weight?: number; port?: number; target?: string; flags?: number; tag?: string; value?: string }; ttl: number; priority?: number; proxied?: boolean; proxiable?: boolean };
 type RenewalQuote = { domain: string; period: number; customerPrice: string; currency: string; currentExpirationDate: string | null; billingData: Record<string, string> };
 
-export default function Show({ domain, securityPending = false, dnsZone = null, dnsRecords = [], dnsError, renewalQuote = null, renewalError, initialTab = 'Overview', activity = [], notice, error }: { domain: Domain; securityPending?: boolean; dnsZone?: DnsZone | null; dnsRecords?: DnsRecord[]; dnsError?: string | null; renewalQuote?: RenewalQuote | null; renewalError?: string | null; initialTab?: DomainTab; activity?: Activity[]; notice?: string | null; error?: string | null }) {
+export default function Show({ domain, securityPending = false, dnsZone = null, dnsRecords = [], dnsError, renewalQuote = null, renewalError, transfer = null, initialTab = 'Overview', activity = [], notice, error }: { domain: Domain; securityPending?: boolean; dnsZone?: DnsZone | null; dnsRecords?: DnsRecord[]; dnsError?: string | null; renewalQuote?: RenewalQuote | null; renewalError?: string | null; transfer?: {id:number;status:string;requested_at:string|null}|null; initialTab?: DomainTab; activity?: Activity[]; notice?: string | null; error?: string | null }) {
     const [tab, setTab] = useState<DomainTab>(initialTab);
     const [editing, setEditing] = useState(false);
     const [nameservers, setNameservers] = useState(domain.nameservers.length >= 2 ? domain.nameservers : ['', '']);
@@ -30,7 +31,7 @@ export default function Show({ domain, securityPending = false, dnsZone = null, 
     };
     const selectTab = (next: DomainTab) => {
         setTab(next);
-        if (next === 'DNS' || next === 'Renewal') router.get(route('domains.show', domain.id), { tab: next.toLowerCase() }, { preserveScroll: true });
+        if (next === 'DNS' || next === 'Renewal' || next === 'Transfers' || next === 'Security') router.get(route('domains.show', domain.id), { tab: next.toLowerCase() }, { preserveScroll: true });
     };
 
     return <AppLayout title={domain.name}>
@@ -60,8 +61,9 @@ export default function Show({ domain, securityPending = false, dnsZone = null, 
             {tab === 'DNS' && <DnsPanel domainId={domain.id} domainName={domain.name} zone={dnsZone} records={dnsRecords} error={dnsError} />}
             {tab === 'Security' && <SecurityPanel domainId={domain.id} transferLocked={domain.transfer_locked} pending={securityPending} />}
             {tab === 'Renewal' && <RenewalPanel domainId={domain.id} expiresAt={domain.expires_at} quote={renewalQuote} error={renewalError} />}
+            {tab === 'Transfers' && <TransferPanel domainId={domain.id} transferLocked={domain.transfer_locked} transfer={transfer} />}
             {tab === 'Activity' && <section className="rounded-xl border border-[#e5e5e5] bg-white p-5"><h2 className="font-semibold">Activity</h2>{activity.length ? <ol className="mt-4 divide-y divide-[#e5e5e5]">{activity.map((item) => <li key={item.id} className="flex justify-between gap-3 py-3 text-sm"><span>{item.label}</span><time className="text-[#737373]">{item.at ? new Date(item.at).toLocaleString() : 'Pending'}</time></li>)}</ol> : <p className="mt-2 text-sm text-[#737373]">No domain activity yet.</p>}</section>}
-            {!['Overview', 'Nameservers', 'DNS', 'Security', 'Renewal', 'Activity'].includes(tab) && <section className="rounded-xl border border-[#e5e5e5] bg-white p-5"><h2 className="font-semibold">{tab}</h2><p className="mt-2 text-sm text-[#525252]">Management will be available in a later milestone.</p></section>}
+            {!['Overview', 'Nameservers', 'DNS', 'Security', 'Renewal', 'Transfers', 'Activity'].includes(tab) && <section className="rounded-xl border border-[#e5e5e5] bg-white p-5"><h2 className="font-semibold">{tab}</h2><p className="mt-2 text-sm text-[#525252]">Management will be available in a later milestone.</p></section>}
             <Link href={route('domains')} className="mt-5 inline-block text-sm underline">Back to My Domains</Link>
         </div>
     </AppLayout>;

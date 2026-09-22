@@ -17,8 +17,12 @@ use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
 use App\Domain\Registrar\DTOs\RenewalResult;
 use App\Domain\Registrar\DTOs\RenewDomainData;
+use App\Domain\Registrar\DTOs\RequestTransferData;
 use App\Domain\Registrar\DTOs\TransferLockData;
+use App\Domain\Registrar\DTOs\TransferRequestResult;
+use App\Domain\Registrar\DTOs\TransferStatusResult;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
+use App\Integrations\OnlineNic\Commands\CancelRegTransferCommand;
 use App\Integrations\OnlineNic\Commands\CheckContactCommand;
 use App\Integrations\OnlineNic\Commands\CheckDomainCommand;
 use App\Integrations\OnlineNic\Commands\CreateContactCommand;
@@ -27,7 +31,9 @@ use App\Integrations\OnlineNic\Commands\GetAuthCodeCommand;
 use App\Integrations\OnlineNic\Commands\GetDomainPriceCommand;
 use App\Integrations\OnlineNic\Commands\InfoDomainCommand;
 use App\Integrations\OnlineNic\Commands\InfoDomainExtraCommand;
+use App\Integrations\OnlineNic\Commands\QueryRegTransferCommand;
 use App\Integrations\OnlineNic\Commands\RenewDomainCommand;
+use App\Integrations\OnlineNic\Commands\RequestRegTransferCommand;
 use App\Integrations\OnlineNic\Commands\UpdateDomainDnsCommand;
 use App\Integrations\OnlineNic\Commands\UpdateDomainStatusCommand;
 use App\Integrations\OnlineNic\Exceptions\InvalidProviderResponse;
@@ -61,6 +67,7 @@ final class OnlineNicRegistrarGateway implements RegistrarGateway
         $operation = match ($query->operation) {
             'registration' => 'reg',
             'renewal' => 'renew',
+            'transfer' => 'transfer',
             default => throw new \InvalidArgumentException('Unsupported domain price operation.'),
         };
         $response = $this->client->execute(new GetDomainPriceCommand($query->domain, $this->tlds->domainType($query->domain), $operation, $query->period));
@@ -171,6 +178,52 @@ final class OnlineNicRegistrarGateway implements RegistrarGateway
         }
 
         return new AuthCodeResult($authCode, $response->cltrid, $response->svtrid, $response->code);
+    }
+
+    public function requestRegistrarTransfer(RequestTransferData $data, string $cltrid): TransferRequestResult
+    {
+        $this->client->ensureAuthenticated();
+        $response = $this->client->execute(new RequestRegTransferCommand($data, $this->tlds->domainType($data->domain)), $cltrid);
+        $domain = $this->stringValue($response->data['domain'] ?? null);
+        $status = $this->stringValue($response->data['status'] ?? null);
+        if ($domain === null || strcasecmp($domain, $data->domain) !== 0 || $status === null) {
+            throw new ProviderAmbiguousResponse('OnlineNIC did not confirm the transfer request.', $response->code, $response->message);
+        }
+
+        return new TransferRequestResult($domain, $status, self::normalizeTransferStatus($status), $response->cltrid, $response->svtrid, $response->code);
+    }
+
+    public function getRegistrarTransferStatus(string $domain): TransferStatusResult
+    {
+        $this->client->ensureAuthenticated();
+        $response = $this->client->execute(new QueryRegTransferCommand($domain, $this->tlds->domainType($domain)));
+        $confirmed = $this->stringValue($response->data['domain'] ?? null);
+        $providerStatus = $this->stringValue($response->data['status'] ?? null);
+        if ($confirmed === null || strcasecmp($confirmed, $domain) !== 0 || $providerStatus === null) {
+            throw new InvalidProviderResponse('OnlineNIC did not confirm the transfer status.', $response->code, $response->message);
+        }
+
+        return new TransferStatusResult($confirmed, $providerStatus, self::normalizeTransferStatus($providerStatus));
+    }
+
+    public function cancelRegistrarTransfer(string $domain, string $cltrid): OperationResult
+    {
+        $this->client->ensureAuthenticated();
+        $response = $this->client->execute(new CancelRegTransferCommand($domain, $this->tlds->domainType($domain)), $cltrid);
+        $this->requireCompletedWrite($response, $cltrid);
+
+        return new OperationResult($response->cltrid, $response->svtrid, $response->code, $response->message);
+    }
+
+    public static function normalizeTransferStatus(string $status): string
+    {
+        return match (trim($status)) {
+            'Pending transfer; no response to our confirmation email for transferring', 'pendingTransfer', 'pendingTransfer, system has not sent confirmation emai', 'pending' => 'pending',
+            'transferSuccessfully' => 'completed',
+            'transfer failed; no pay', 'clientRejected' => 'failed',
+            'clientCanceled; transfer operation expired', 'clientCanceled; client canceled', 'clientCanceled; system canceled' => 'cancelled',
+            default => 'action_required',
+        };
     }
 
     private function requireCompletedWrite(OnlineNicResponse $response, string $cltrid): void

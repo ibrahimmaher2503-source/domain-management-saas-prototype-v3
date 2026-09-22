@@ -28,7 +28,7 @@ Every request has `category`, `action`, zero or more `params`, unique `cltrid`, 
 | Domains | `InfoDomainExtra` | `domaintype`, `domain`; registry `status` and VAS data | read | The documented `status` is used to normalize `clientTransferProhibited`; a missing status remains unknown. |
 | Domains | `GetAuthcode` | `domaintype`, `domain`; password/auth code | read-sensitive | Never show in logs or broad admin listings. |
 | Domains | `GetTmNotice` | TLD/domain lookup fields | read | Trademark notice data; exact field rules are TLD-specific. |
-| Domains | `GetDomainPrice` | `domaintype`, `domain`, `op`, `period` | read-billing | Application operations map `registration → reg` and `renewal → renew`; returns current provider price. |
+| Domains | `GetDomainPrice` | `domaintype`, `domain`, `op`, `period` | read-billing | Application operations map `registration → reg`, `renewal → renew`, and `transfer → transfer`; returns current provider price but no currency. |
 | Domains | `UpdateXxxMemberId` | TLD/member ID fields | write | Template action in source; exact supported TLDs require confirmation. |
 | Hosts | `CheckHost` | `domaintype`, `hostname`; `avail` | read | Checks registered host object. |
 | Hosts | `InfoHost` | `domaintype`, `hostname`; IP addresses | read | Main domain must be in the account. |
@@ -44,8 +44,8 @@ Every request has `category`, `action`, zero or more `params`, unique `cltrid`, 
 | Reseller transfer | `RequestCustTransfer` | `domaintype`, `domain`, password, current account ID | write-billing | Successful transfer renews by default per source notes. |
 | Reseller transfer | `CustTransferSetPwd` | domain/password and transfer fields | write-sensitive | Losing reseller operation. |
 | Registrar transfer | `QueryRegTransfer` | `domaintype`, `domain`; status | read | Transfer is asynchronous. |
-| Registrar transfer | `RequestRegTransfer` | `domaintype`, `domain`, `mailway` | write-billing/async | Source example returns code 1001/pending. |
-| Registrar transfer | `CancelRegTransfer` | `domaintype`, `domain` | destructive write | Cancel only when provider state permits. |
+| Registrar transfer | `RequestRegTransfer` | `domaintype`, `domain`, `mailway` | write-billing/async | No Auth/EPP field is documented. `mailway=On` means reseller-sent confirmation; `Off` means OnlineNIC-sent and is the platform choice. Source example returns code 1001/pending and a successful transfer renews one year. |
+| Registrar transfer | `CancelRegTransfer` | `domaintype`, `domain` | destructive write | Cannot cancel after transfer success or failure. Application confirms a pending state before writing. |
 | SSL | `Order` | product, validity, server, contacts, CSR/organization/approver fields; order ID/price | write-billing/async | Can purchase or renew. |
 | SSL | `GetApproverEmailList` | domain; email list | read | Domain validation choices. |
 | SSL | `Cancel` | order ID | destructive write | Cancel certificate order. |

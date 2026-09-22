@@ -13,7 +13,10 @@ use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
 use App\Domain\Registrar\DTOs\RenewalResult;
 use App\Domain\Registrar\DTOs\RenewDomainData;
+use App\Domain\Registrar\DTOs\RequestTransferData;
 use App\Domain\Registrar\DTOs\TransferLockData;
+use App\Domain\Registrar\DTOs\TransferRequestResult;
+use App\Domain\Registrar\DTOs\TransferStatusResult;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 
 interface RegistrarGateway
@@ -33,4 +36,10 @@ interface RegistrarGateway
     public function setTransferLock(TransferLockData $data, string $cltrid): OperationResult;
 
     public function getAuthCode(string $domain): AuthCodeResult;
+
+    public function requestRegistrarTransfer(RequestTransferData $data, string $cltrid): TransferRequestResult;
+
+    public function getRegistrarTransferStatus(string $domain): TransferStatusResult;
+
+    public function cancelRegistrarTransfer(string $domain, string $cltrid): OperationResult;
 }

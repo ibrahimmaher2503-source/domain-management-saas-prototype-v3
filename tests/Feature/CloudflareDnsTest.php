@@ -18,7 +18,10 @@ use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
 use App\Domain\Registrar\DTOs\RenewalResult;
 use App\Domain\Registrar\DTOs\RenewDomainData;
+use App\Domain\Registrar\DTOs\RequestTransferData;
 use App\Domain\Registrar\DTOs\TransferLockData;
+use App\Domain\Registrar\DTOs\TransferRequestResult;
+use App\Domain\Registrar\DTOs\TransferStatusResult;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\Cloudflare\CloudflareClient;
 use App\Integrations\Cloudflare\CloudflareDnsProvider;
@@ -314,6 +317,21 @@ final class FakeDnsRegistrar implements RegistrarGateway
     public function setTransferLock(TransferLockData $data, string $cltrid): OperationResult
     {
         throw new \LogicException('Unexpected write.');
+    }
+
+    public function requestRegistrarTransfer(RequestTransferData $data, string $cltrid): TransferRequestResult
+    {
+        throw new \LogicException('Unexpected transfer write.');
+    }
+
+    public function getRegistrarTransferStatus(string $domain): TransferStatusResult
+    {
+        throw new \LogicException('Unexpected transfer read.');
+    }
+
+    public function cancelRegistrarTransfer(string $domain, string $cltrid): OperationResult
+    {
+        throw new \LogicException('Unexpected transfer write.');
     }
 
     public function getAuthCode(string $domain): AuthCodeResult

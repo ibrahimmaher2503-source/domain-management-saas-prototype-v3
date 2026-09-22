@@ -61,6 +61,17 @@ final class PaymobPaymentTest extends TestCase
         Http::assertSent(fn ($request) => $request['items'][0]['name'] === 'Domain renewal: example.com' && $request['items'][0]['description'] === 'Domain renewal');
     }
 
+    public function test_transfer_uses_the_same_paymob_flow_with_a_transfer_item(): void
+    {
+        Http::fake(['https://accept.paymob.com/v1/intention/' => Http::response(['id' => 'pi_test_1', 'intention_order_id' => 987, 'client_secret' => 'cs_test', 'status' => 'created'], 201)]);
+        [$user, $order] = $this->order();
+        $order->update(['type' => 'domain_transfer']);
+
+        $this->actingAs($user)->post(route('orders.pay', $order))->assertRedirect();
+
+        Http::assertSent(fn ($request) => $request['items'][0]['name'] === 'Domain transfer: example.com' && $request['items'][0]['description'] === 'Domain transfer');
+    }
+
     public function test_repeated_renewal_callback_dispatches_fulfillment_once(): void
     {
         [$user, $order] = $this->order();

@@ -40,4 +40,9 @@ class Domain extends Model
     {
         return $this->hasOne(DnsZone::class);
     }
+
+    public function transfers(): HasMany
+    {
+        return $this->hasMany(Transfer::class);
+    }
 }

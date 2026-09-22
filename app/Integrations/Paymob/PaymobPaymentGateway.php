@@ -32,6 +32,7 @@ final class PaymobPaymentGateway implements PaymentGateway
         [$itemName, $description] = match ($order->type) {
             'domain_registration' => ['Domain registration: '.$order->domain, 'Domain registration'],
             'domain_renewal' => ['Domain renewal: '.$order->domain, 'Domain renewal'],
+            'domain_transfer' => ['Domain transfer: '.$order->domain, 'Domain transfer'],
             default => throw new PaymentCreationFailed('This order type cannot be paid.'),
         };
         $data = $this->client->createIntention([

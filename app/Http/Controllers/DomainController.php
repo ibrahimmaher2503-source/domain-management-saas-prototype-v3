@@ -88,8 +88,10 @@ final class DomainController extends Controller
         $renewalPaymentActivity = $domain->renewalOrders()->whereHas('payments', fn ($query) => $query->where('status', 'paid'))->latest()->get()->map(static fn ($order): array => ['id' => 'renewal-payment-'.$order->id, 'label' => 'Renewal payment confirmed', 'status' => 'completed', 'at' => $order->updated_at?->toIso8601String()])->all();
 
         return Inertia::render('Domains/Show', ['domain' => $this->summary($domain), 'securityPending' => $domain->registrarOperations()->where('operation', 'set_transfer_lock')->whereIn('status', ['pending', 'ambiguous'])->exists(), 'dnsZone' => $zone ? ['status' => $zone->status, 'assigned_nameservers' => $zone->assigned_nameservers, 'provider_synced_at' => $zone->provider_synced_at?->toIso8601String(), 'delegated' => $registrarSync->sameNameservers($domain->nameservers ?? [], $zone->assigned_nameservers ?? []), 'ambiguous' => $zone->operations()->whereIn('status', ['pending', 'ambiguous'])->exists()] : null, 'dnsRecords' => $dnsRecords, 'dnsError' => $dnsError, 'renewalQuote' => $renewalQuote, 'renewalError' => $renewalError, 'initialTab' => match ($request->query('tab')) {
-            'dns' => 'DNS', 'renewal' => 'Renewal', default => 'Overview'
-        }, 'activity' => collect(array_merge($activity->all(), $dnsActivity, $renewalPaymentActivity))->sortByDesc('at')->take(20)->values()->all(), 'notice' => session('domain_notice'), 'error' => session('domain_error')]);
+            'dns' => 'DNS', 'renewal' => 'Renewal', 'transfers' => 'Transfers', 'security' => 'Security', default => 'Overview'
+        }, 'transfer' => $domain->transfers()->latest()->first()?->only(['id', 'status', 'requested_at']), 'activity' => collect(array_merge($activity->all(), $dnsActivity, $renewalPaymentActivity, $domain->transfers()->latest()->limit(20)->get()->map(fn ($transfer) => ['id' => 'transfer-'.$transfer->id, 'label' => match ($transfer->status) {
+            'completed' => 'Transfer completed', 'failed' => 'Transfer failed', 'cancelled' => 'Transfer cancelled', 'action_required' => 'Transfer awaiting confirmation', 'pending', 'processing' => 'Transfer processing', default => 'Transfer requested'
+        }, 'status' => $transfer->status, 'at' => $transfer->updated_at?->toIso8601String()])->all()))->sortByDesc('at')->take(20)->values()->all(), 'notice' => session('domain_notice'), 'error' => session('domain_error')]);
     }
 
     public function sync(Request $request, Domain $domain, SyncDomainFromRegistrar $sync): RedirectResponse

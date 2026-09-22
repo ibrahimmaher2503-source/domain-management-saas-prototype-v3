@@ -38,6 +38,11 @@ class User extends Authenticatable
         return $this->hasMany(RegistrarOperation::class);
     }
 
+    public function transfers(): HasMany
+    {
+        return $this->hasMany(Transfer::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

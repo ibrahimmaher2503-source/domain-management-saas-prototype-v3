@@ -20,6 +20,8 @@ final class ProvisionSslCertificate implements ShouldQueue
 
     public int $tries = 1;
 
+    public int $timeout = 150;
+
     public function __construct(public readonly int $orderId) {}
 
     public function handle(SslProvider $provider, OnlineNicTransactionIdGenerator $tx): void

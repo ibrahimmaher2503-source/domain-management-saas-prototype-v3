@@ -1,5 +1,9 @@
 <?php
 
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('app:reconcile-unresolved --limit=10')->everyFiveMinutes()->withoutOverlapping(10)->onOneServer();
+
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 

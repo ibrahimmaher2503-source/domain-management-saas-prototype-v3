@@ -20,12 +20,14 @@ final class ReconcileDomainRegistration implements ShouldQueue
 
     public int $tries = 1;
 
+    public int $timeout = 75;
+
     public function __construct(public readonly int $operationId) {}
 
     public function handle(RegistrarGateway $registrar): void
     {
         $operation = RegistrarOperation::query()->with('order')->find($this->operationId);
-        if (! $operation || ! in_array($operation->status, ['ambiguous', 'completed'], true) || $operation->operation !== 'domain_registration' || ! $operation->order || $operation->order->status !== 'provisioning' || $operation->order->domains()->exists()) {
+        if (! $operation || ! in_array($operation->status, ['pending', 'ambiguous', 'action_required', 'completed'], true) || $operation->operation !== 'domain_registration' || ! $operation->order || $operation->order->status !== 'provisioning' || $operation->order->domains()->exists()) {
             return;
         }
         try {

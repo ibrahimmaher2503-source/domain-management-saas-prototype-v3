@@ -29,6 +29,7 @@ final class ConnectDomainDns
         }
         // A prior request may have reached Cloudflare. Find it before considering another create.
         $claimed = false;
+        $operation = null;
         try {
             $remote = $this->provider->findZone($domain->name);
             if ($remote === null && ! $zone->creation_attempted) {
@@ -36,19 +37,24 @@ final class ConnectDomainDns
                 if (! $claimed) {
                     return $zone;
                 }
+                $operation = $zone->operations()->create(['operation' => 'connect', 'status' => 'pending']);
                 $remote = $this->provider->createZone($domain->name);
             }
             if ($remote === null) {
                 return $zone;
             }
             $zone->update(['provider_zone_id' => $remote['id'], 'provider_status' => $remote['status'], 'assigned_nameservers' => $remote['nameservers'], 'provider_synced_at' => now()]);
-            if (! $zone->operations()->where('operation', 'connect')->exists()) {
+            ($operation ?: $zone->operations()->where('operation', 'connect')->latest('id')->first())?->update(['status' => 'completed']);
+            if (! $operation && ! $zone->operations()->where('operation', 'connect')->exists()) {
                 $zone->operations()->create(['operation' => 'connect', 'status' => 'completed']);
             }
         } catch (AmbiguousDnsWrite) {
+            $operation?->update(['status' => 'ambiguous']);
+
             return $zone->fresh();
         } catch (DnsProviderException $exception) {
             // A clear rejection did not create a zone, so a later attempt is safe.
+            $operation?->update(['status' => 'failed']);
             if ($claimed) {
                 $zone->update(['creation_attempted' => false]);
             }

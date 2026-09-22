@@ -45,7 +45,7 @@ final class PaymobPaymentTest extends TestCase
         $this->postJson(route('payments.paymob.callback'), $payload)->assertOk();
         $this->assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'paid', 'provider_transaction_id' => '77']);
         $this->assertSame('paid', $order->fresh()->status);
-        Queue::assertPushed(DispatchPaidOrderFulfillment::class, fn (DispatchPaidOrderFulfillment $job) => $job->connection === 'database');
+        Queue::assertPushed(DispatchPaidOrderFulfillment::class, fn (DispatchPaidOrderFulfillment $job) => $job->connection === null);
         Queue::assertPushed(DispatchPaidOrderFulfillment::class, 1);
     }
 

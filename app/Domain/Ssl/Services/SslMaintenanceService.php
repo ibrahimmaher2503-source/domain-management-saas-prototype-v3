@@ -103,12 +103,12 @@ final class SslMaintenanceService
             $confirmed();
             $op->update(['status' => 'completed', 'provider_code' => '1000', 'completed_at' => now()]);
             if ($reconcile && $operation === 'reissue_certificate') {
-                ReconcileSslCertificate::dispatch($certificate->id)->onConnection('database');
+                ReconcileSslCertificate::dispatch($certificate->id);
             }
         } catch (ProviderAmbiguousResponse) {
             $op->update(['status' => 'ambiguous', 'provider_message' => 'Provider response was ambiguous.']);
             if ($reconcile) {
-                ReconcileSslCertificate::dispatch($certificate->id)->onConnection('database');
+                ReconcileSslCertificate::dispatch($certificate->id);
             }
             throw new CheckoutUnavailable('Certificate maintenance is awaiting provider confirmation.');
         } catch (OnlineNicException $exception) {

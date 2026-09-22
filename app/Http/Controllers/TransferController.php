@@ -13,6 +13,7 @@ use App\Jobs\ReconcileDomainTransfer;
 use App\Models\Transfer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -80,7 +81,7 @@ final class TransferController extends Controller
     {
         abort_unless($transfer->user_id === $request->user()->id, 404);
         if (! in_array($transfer->status, ['completed', 'failed', 'cancelled'], true)) {
-            ReconcileDomainTransfer::dispatch($transfer->id)->onConnection('database');
+            ReconcileDomainTransfer::dispatch($transfer->id);
         }
 
         return back()->with('transfer_notice', 'Transfer status refresh queued.');
@@ -101,17 +102,26 @@ final class TransferController extends Controller
         } catch (OnlineNicException) {
             return back()->withErrors(['cancel' => 'Current transfer state could not be confirmed.']);
         }
-        $transfer->update(['provider_status' => $current->providerStatus, 'status' => $current->status, 'provider_synced_at' => now()]);
-        if (! in_array($current->status, ['pending', 'processing'], true)) {
-            return back()->withErrors(['cancel' => 'This transfer can no longer be cancelled.']);
+        $operation = DB::transaction(function () use ($transfer, $current, $transactions) {
+            $locked = Transfer::with('order')->whereKey($transfer->id)->lockForUpdate()->firstOrFail();
+            $locked->update(['provider_status' => $current->providerStatus, 'status' => $current->status, 'provider_synced_at' => now()]);
+            if (! $locked->order || ! in_array($current->status, ['pending', 'processing'], true) || $locked->order->registrarOperations()->where('operation', 'cancel_registrar_transfer')->whereIn('status', ['pending', 'ambiguous', 'completed'])->exists()) {
+                return null;
+            }
+
+            return $locked->order->registrarOperations()->create(['user_id' => $locked->user_id, 'provider' => 'onlinenic', 'operation' => 'cancel_registrar_transfer', 'cltrid' => $transactions->generate(), 'status' => 'pending', 'safe_request_metadata' => ['domain' => $locked->domain], 'started_at' => now()]);
+        });
+        if (! $operation) {
+            return $transfer->order?->registrarOperations()->where('operation', 'cancel_registrar_transfer')->whereIn('status', ['pending', 'ambiguous', 'completed'])->exists()
+                ? back()->with('transfer_notice', 'Cancellation is already being confirmed; it was not submitted again.')
+                : back()->withErrors(['cancel' => 'This transfer can no longer be cancelled.']);
         }
-        $operation = $transfer->order->registrarOperations()->create(['user_id' => $transfer->user_id, 'provider' => 'onlinenic', 'operation' => 'cancel_registrar_transfer', 'cltrid' => $transactions->generate(), 'status' => 'pending', 'safe_request_metadata' => ['domain' => $transfer->domain], 'started_at' => now()]);
         try {
             $result = $registrar->cancelRegistrarTransfer($transfer->domain, $operation->cltrid);
         } catch (ProviderAmbiguousResponse) {
             $operation->update(['status' => 'ambiguous', 'provider_message' => 'Provider response was ambiguous.']);
             $transfer->update(['status' => 'ambiguous']);
-            ReconcileDomainTransfer::dispatch($transfer->id)->onConnection('database')->delay(now()->addMinute());
+            ReconcileDomainTransfer::dispatch($transfer->id)->delay(now()->addMinute());
 
             return back()->with('transfer_notice', 'Cancellation is awaiting registrar confirmation.');
         } catch (OnlineNicException $e) {

@@ -188,8 +188,6 @@ final class OnlineNicClient
             $this->logger->info('OnlineNIC command completed', [
                 'provider' => 'onlinenic',
                 'action' => $command->action(),
-                'cltrid' => $transactionId,
-                'svtrid' => isset($response) ? $response->svtrid : null,
                 'provider_code' => isset($response) ? $response->code : null,
                 'duration_ms' => (int) ((microtime(true) - $started) * 1000),
                 'success' => isset($response) && $response->successful(),

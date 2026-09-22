@@ -43,9 +43,11 @@ final class DomainCheckoutService
 
     public function createOrder(User $user, DomainRegistrationCheckoutData $data): Order
     {
-        return DB::transaction(function () use ($user, $data): Order {
-            $quote = $this->quote($data->domain, $data->period);
-            $this->validateNameservers($data->nameservers, $quote->capability);
+        $quote = $this->quote($data->domain, $data->period);
+        $this->validateNameservers($data->nameservers, $quote->capability);
+
+        return DB::transaction(function () use ($user, $data, $quote): Order {
+            User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
             $active = $user->orders()->where('domain', $quote->domain)->whereIn('status', ['draft', 'awaiting_payment'])->lockForUpdate()->exists();
             if ($active) {
                 throw new CheckoutUnavailable('An active order already exists for this domain.');

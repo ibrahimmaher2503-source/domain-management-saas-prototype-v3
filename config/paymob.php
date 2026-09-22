@@ -12,4 +12,5 @@ return [
     'redirection_url' => env('PAYMOB_REDIRECTION_URL'),
     'connect_timeout' => (float) env('PAYMOB_CONNECT_TIMEOUT', 5),
     'timeout' => (float) env('PAYMOB_TIMEOUT', 15),
+    'callback_max_bytes' => (int) env('PAYMOB_CALLBACK_MAX_BYTES', 65536),
 ];

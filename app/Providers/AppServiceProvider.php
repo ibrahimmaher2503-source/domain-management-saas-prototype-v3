@@ -15,6 +15,7 @@ use App\Integrations\OnlineNic\Ssl\OnlineNicSslProvider;
 use App\Integrations\OnlineNic\Transport\TcpSocketTransport;
 use App\Integrations\Paymob\PaymobClient;
 use App\Integrations\Paymob\PaymobPaymentGateway;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -44,6 +45,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->environment('production') && str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
         Vite::prefetch(concurrency: 3);
     }
 }

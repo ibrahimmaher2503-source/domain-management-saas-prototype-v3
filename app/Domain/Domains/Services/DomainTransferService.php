@@ -39,8 +39,13 @@ final class DomainTransferService
 
     public function createOrder(User $user, string $domain, PaymentBillingData $billing): Order
     {
-        return DB::transaction(function () use ($user, $domain, $billing): Order {
-            $quote = $this->quote($user, $domain);
+        $quote = $this->quote($user, $domain);
+
+        return DB::transaction(function () use ($user, $billing, $quote): Order {
+            User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            if (Domain::where('name', $quote['domain'])->exists() || $user->transfers()->where('domain', $quote['domain'])->whereIn('status', ['awaiting_payment', 'paid', 'pending', 'processing', 'action_required', 'ambiguous'])->exists()) {
+                throw new CheckoutUnavailable('An active transfer already exists for this domain.');
+            }
             $order = $user->orders()->create(['type' => 'domain_transfer', 'status' => 'awaiting_payment', 'domain' => $quote['domain'], 'tld' => 'com', 'registration_period' => 1, 'provider' => 'onlinenic', 'provider_cost' => $quote['providerPrice'], 'customer_price' => $quote['customerPrice'], 'currency' => $quote['currency'], 'premium' => false, 'registration_data' => null, 'billing_data' => $billing->toArray(), 'nameservers' => []]);
             Transfer::create(['user_id' => $user->id, 'order_id' => $order->id, 'domain' => $quote['domain'], 'tld' => 'com', 'provider' => 'onlinenic', 'direction' => 'in', 'status' => 'awaiting_payment']);
 

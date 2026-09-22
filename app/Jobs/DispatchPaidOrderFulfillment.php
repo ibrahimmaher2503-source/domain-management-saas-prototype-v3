@@ -15,6 +15,8 @@ final class DispatchPaidOrderFulfillment implements ShouldQueue
 
     public int $tries = 1;
 
+    public int $timeout = 30;
+
     public function __construct(public readonly int $orderId) {}
 
     public function handle(): void
@@ -25,10 +27,10 @@ final class DispatchPaidOrderFulfillment implements ShouldQueue
         }
 
         match ($order->type) {
-            'domain_registration' => ProvisionDomainRegistration::dispatch($order->id)->onConnection('database'),
-            'domain_renewal' => ProvisionDomainRenewal::dispatch($order->id)->onConnection('database'),
-            'domain_transfer' => ProvisionDomainTransfer::dispatch($order->id)->onConnection('database'),
-            'ssl_certificate' => ProvisionSslCertificate::dispatch($order->id)->onConnection('database'),
+            'domain_registration' => ProvisionDomainRegistration::dispatch($order->id),
+            'domain_renewal' => ProvisionDomainRenewal::dispatch($order->id),
+            'domain_transfer' => ProvisionDomainTransfer::dispatch($order->id),
+            'ssl_certificate' => ProvisionSslCertificate::dispatch($order->id),
             default => $order->update(['status' => 'failed', 'provisioning_failure_reason' => 'Paid order requires review.']),
         };
     }

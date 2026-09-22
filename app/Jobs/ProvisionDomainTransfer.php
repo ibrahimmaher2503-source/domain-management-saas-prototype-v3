@@ -21,6 +21,8 @@ final class ProvisionDomainTransfer implements ShouldQueue
 
     public int $tries = 1;
 
+    public int $timeout = 150;
+
     public function __construct(public readonly int $orderId) {}
 
     public function handle(RegistrarGateway $registrar, OnlineNicTransactionIdGenerator $transactions): void
@@ -49,7 +51,7 @@ final class ProvisionDomainTransfer implements ShouldQueue
         } catch (ProviderAmbiguousResponse) {
             $operation->update(['status' => 'ambiguous', 'provider_message' => 'Provider response was ambiguous.']);
             $transfer->update(['status' => 'ambiguous', 'requested_at' => now()]);
-            ReconcileDomainTransfer::dispatch($transfer->id)->onConnection('database')->delay(now()->addMinute());
+            ReconcileDomainTransfer::dispatch($transfer->id)->delay(now()->addMinute());
 
             return;
         } catch (OnlineNicException $exception) {
@@ -61,6 +63,6 @@ final class ProvisionDomainTransfer implements ShouldQueue
         }
         $operation->update(['status' => $result->status === 'completed' ? 'completed' : 'pending', 'svtrid' => $result->svtrid, 'provider_code' => $result->code, 'provider_metadata' => ['status' => $result->providerStatus], 'completed_at' => $result->status === 'completed' ? now() : null]);
         $transfer->update(['status' => $result->status, 'provider_status' => $result->providerStatus, 'requested_at' => now(), 'provider_synced_at' => now()]);
-        ReconcileDomainTransfer::dispatch($transfer->id)->onConnection('database')->delay(now()->addMinute());
+        ReconcileDomainTransfer::dispatch($transfer->id)->delay(now()->addMinute());
     }
 }

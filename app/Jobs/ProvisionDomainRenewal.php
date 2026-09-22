@@ -23,6 +23,8 @@ final class ProvisionDomainRenewal implements ShouldQueue
 
     public int $tries = 1;
 
+    public int $timeout = 150;
+
     public function __construct(public readonly int $orderId) {}
 
     public function handle(RegistrarGateway $registrar, SyncDomainFromRegistrar $sync, OnlineNicTransactionIdGenerator $transactions): void
@@ -61,7 +63,7 @@ final class ProvisionDomainRenewal implements ShouldQueue
             $result = $registrar->renewDomain(new RenewDomainData($domain->name, $order->registration_period), $operation->cltrid);
         } catch (ProviderAmbiguousResponse) {
             $operation->update(['status' => 'ambiguous', 'provider_message' => 'Provider response was ambiguous.']);
-            ReconcileDomainRenewal::dispatch($operation->id)->onConnection('database')->delay(now()->addMinute());
+            ReconcileDomainRenewal::dispatch($operation->id)->delay(now()->addMinute());
 
             return;
         } catch (OnlineNicException $exception) {
@@ -84,7 +86,7 @@ final class ProvisionDomainRenewal implements ShouldQueue
         if ($confirmedExpiration !== null || $this->advancedAsExpected($before, $domain->expires_at?->toDateString(), $order->registration_period)) {
             $order->update(['status' => 'completed', 'provisioning_failure_reason' => null]);
         } else {
-            ReconcileDomainRenewal::dispatch($operation->id)->onConnection('database')->delay(now()->addMinute());
+            ReconcileDomainRenewal::dispatch($operation->id)->delay(now()->addMinute());
         }
     }
 

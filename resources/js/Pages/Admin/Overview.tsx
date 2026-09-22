@@ -1,7 +1,7 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Link } from '@inertiajs/react';
 
-const labels: Record<string, string> = { customers: 'Total customers', domains: 'Total domains', active_domains: 'Active domains', expiring_7_days: 'Expiring in 7 days', expiring_30_days: 'Expiring in 30 days', pending_transfers: 'Pending transfers', pending_ssl: 'Pending SSL', awaiting_payment_orders: 'Awaiting payment', provisioning_orders: 'Provisioning', failed_orders: 'Failed orders', external_attention: 'Needs review' };
+const labels: Record<string, string> = { customers: 'Total customers', domains: 'Total domains', active_domains: 'Active domains', expiring_7_days: 'Expiring in 7 days', expiring_30_days: 'Expiring in 30 days', pending_transfers: 'Pending transfers', pending_ssl: 'Pending SSL', awaiting_payment_orders: 'Awaiting payment', provisioning_orders: 'Provisioning', failed_orders: 'Failed orders', external_attention: 'Needs review', failed_queue_jobs: 'Failed queue jobs' };
 
 function subject(row: any) { return typeof row.domain === 'string' ? row.domain : row.domain?.name ?? `#${row.id}`; }
 

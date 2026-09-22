@@ -80,21 +80,21 @@ final class AdminActionController extends Controller
     private function queueRegistrar(int $id, string $operationName, string $job): void
     {
         $operation = RegistrarOperation::where('operation', $operationName)->findOrFail($id);
-        $job::dispatch($operation->id)->onConnection('database');
+        $job::dispatch($operation->id);
 
     }
 
     private function queueTransfer(int $id): void
     {
         $transfer = Transfer::findOrFail($id);
-        ReconcileDomainTransfer::dispatch($transfer->id)->onConnection('database');
+        ReconcileDomainTransfer::dispatch($transfer->id);
 
     }
 
     private function queueSsl(int $id): void
     {
         $certificate = SslCertificate::findOrFail($id);
-        ReconcileSslCertificate::dispatch($certificate->id)->onConnection('database');
+        ReconcileSslCertificate::dispatch($certificate->id);
 
     }
 

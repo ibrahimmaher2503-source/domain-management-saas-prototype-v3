@@ -17,6 +17,8 @@ final class ReconcileSslCertificate implements ShouldQueue
 
     public int $tries = 1;
 
+    public int $timeout = 75;
+
     public function __construct(public readonly int $certificateId, public readonly int $attempt = 1) {}
 
     public function handle(SslProvider $provider): void
@@ -52,7 +54,7 @@ final class ReconcileSslCertificate implements ShouldQueue
     private function again(SslCertificate $c): void
     {
         if ($this->attempt < 3) {
-            self::dispatch($c->id, $this->attempt + 1)->onConnection('database')->delay(now()->addMinutes(5));
+            self::dispatch($c->id, $this->attempt + 1)->delay(now()->addMinutes(5));
         } else {
             $c->update(['status' => 'action_required']);
         }

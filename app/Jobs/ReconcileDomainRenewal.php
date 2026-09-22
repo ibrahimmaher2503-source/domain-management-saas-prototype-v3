@@ -19,12 +19,14 @@ final class ReconcileDomainRenewal implements ShouldQueue
 
     public int $tries = 1;
 
+    public int $timeout = 75;
+
     public function __construct(public readonly int $operationId, public readonly int $attempt = 1) {}
 
     public function handle(RegistrarGateway $registrar): void
     {
         $operation = RegistrarOperation::query()->with(['order', 'domain'])->find($this->operationId);
-        if (! $operation || ! in_array($operation->status, ['ambiguous', 'completed'], true) || $operation->operation !== 'domain_renewal' || ! $operation->order || ! $operation->domain || $operation->order->status !== 'provisioning') {
+        if (! $operation || ! in_array($operation->status, ['pending', 'ambiguous', 'action_required', 'completed'], true) || $operation->operation !== 'domain_renewal' || ! $operation->order || ! $operation->domain || $operation->order->status !== 'provisioning') {
             return;
         }
         try {
@@ -58,7 +60,7 @@ final class ReconcileDomainRenewal implements ShouldQueue
     private function again(): void
     {
         if ($this->attempt < 3) {
-            self::dispatch($this->operationId, $this->attempt + 1)->onConnection('database')->delay(now()->addMinutes([2 => 5, 3 => 15][$this->attempt + 1]));
+            self::dispatch($this->operationId, $this->attempt + 1)->delay(now()->addMinutes([2 => 5, 3 => 15][$this->attempt + 1]));
         }
     }
 }

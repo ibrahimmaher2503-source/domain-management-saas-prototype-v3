@@ -19,6 +19,8 @@ final class ReconcileDomainTransfer implements ShouldQueue
 
     public int $tries = 1;
 
+    public int $timeout = 105;
+
     public function __construct(public readonly int $transferId, public readonly int $attempt = 1) {}
 
     public function handle(RegistrarGateway $registrar): void
@@ -79,7 +81,7 @@ final class ReconcileDomainTransfer implements ShouldQueue
     private function again(Transfer $transfer): void
     {
         if ($this->attempt < 3) {
-            self::dispatch($transfer->id, $this->attempt + 1)->onConnection('database')->delay(now()->addMinutes([2 => 5, 3 => 15][$this->attempt + 1]));
+            self::dispatch($transfer->id, $this->attempt + 1)->delay(now()->addMinutes([2 => 5, 3 => 15][$this->attempt + 1]));
         } else {
             $transfer->update(['status' => in_array($transfer->status, ['ambiguous', 'action_required'], true) ? $transfer->status : 'action_required']);
         }

@@ -12,6 +12,7 @@ use App\Models\Domain;
 use App\Models\SslCertificate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -69,10 +70,21 @@ final class SslController extends Controller
             $emails = $s->approvers($r->user(), $domain);
             if (! in_array($d['approver_email'], $emails, true)) {
                 throw new CheckoutUnavailable('Choose an approver email returned by the provider.');
-            } $p = config("ssl.products.{$d['product']}");
-            $c = $r->user()->sslCertificates()->create(['domain_id' => $domain->id, 'provider' => 'onlinenic', 'product_key' => $d['product'], 'provider_product' => $p['provider_product'], 'status' => 'awaiting_payment', 'validation_type' => $p['validation_type'], 'approver_email' => $d['approver_email']]);
-            $o = $r->user()->orders()->create(['type' => 'ssl_certificate', 'status' => 'awaiting_payment', 'domain' => $domain->name, 'tld' => $domain->tld, 'registration_period' => (int) $d['validity'] / 12, 'provider' => 'onlinenic', 'provider_cost' => null, 'customer_price' => $q['customer_price'], 'currency' => $q['currency'], 'premium' => false, 'registration_data' => null, 'ssl_data' => ['product' => $d['product'], 'validity' => (int) $d['validity'], 'csr' => $d['csr'], 'approver_email' => $d['approver_email'], 'first_name' => $d['payment_billing']['first_name'], 'last_name' => $d['payment_billing']['last_name'], 'email' => $d['payment_billing']['email'], 'phone' => $d['payment_billing']['phone_number']], 'billing_data' => (new PaymentBillingData($d['payment_billing']['first_name'], $d['payment_billing']['last_name'], $d['payment_billing']['email'], $d['payment_billing']['phone_number'], strtoupper($d['payment_billing']['country']), $d['payment_billing']['city'], $d['payment_billing']['street'], $d['payment_billing']['state'], $d['payment_billing']['postal_code']))->toArray(), 'nameservers' => [], 'ssl_certificate_id' => $c->id]);
-            $c->update(['order_id' => $o->id]);
+            }
+            $p = config("ssl.products.{$d['product']}");
+            $billing = (new PaymentBillingData($d['payment_billing']['first_name'], $d['payment_billing']['last_name'], $d['payment_billing']['email'], $d['payment_billing']['phone_number'], strtoupper($d['payment_billing']['country']), $d['payment_billing']['city'], $d['payment_billing']['street'], $d['payment_billing']['state'], $d['payment_billing']['postal_code']))->toArray();
+            $o = DB::transaction(function () use ($r, $domain, $d, $p, $q, $billing) {
+                $locked = Domain::query()->whereKey($domain->id)->lockForUpdate()->firstOrFail();
+                abort_unless($locked->user_id === $r->user()->id, 404);
+                if ($locked->sslCertificates()->where('product_key', $d['product'])->whereIn('status', ['awaiting_payment', 'ordering'])->exists()) {
+                    throw new CheckoutUnavailable('An active SSL order already exists for this domain.');
+                }
+                $c = $r->user()->sslCertificates()->create(['domain_id' => $locked->id, 'provider' => 'onlinenic', 'product_key' => $d['product'], 'provider_product' => $p['provider_product'], 'status' => 'awaiting_payment', 'validation_type' => $p['validation_type'], 'approver_email' => $d['approver_email']]);
+                $order = $r->user()->orders()->create(['type' => 'ssl_certificate', 'status' => 'awaiting_payment', 'domain' => $locked->name, 'tld' => $locked->tld, 'registration_period' => (int) $d['validity'] / 12, 'provider' => 'onlinenic', 'provider_cost' => null, 'customer_price' => $q['customer_price'], 'currency' => $q['currency'], 'premium' => false, 'registration_data' => null, 'ssl_data' => ['product' => $d['product'], 'validity' => (int) $d['validity'], 'csr' => $d['csr'], 'approver_email' => $d['approver_email'], 'first_name' => $d['payment_billing']['first_name'], 'last_name' => $d['payment_billing']['last_name'], 'email' => $d['payment_billing']['email'], 'phone' => $d['payment_billing']['phone_number']], 'billing_data' => $billing, 'nameservers' => [], 'ssl_certificate_id' => $c->id]);
+                $c->update(['order_id' => $order->id]);
+
+                return $order;
+            });
 
             return redirect()->route('orders.show', $o);
         } catch (CheckoutUnavailable|OnlineNicException $e) {
@@ -84,7 +96,7 @@ final class SslController extends Controller
     {
         abort_unless($certificate->user_id === $r->user()->id, 404);
         if ($certificate->provider_order_id) {
-            ReconcileSslCertificate::dispatch($certificate->id)->onConnection('database');
+            ReconcileSslCertificate::dispatch($certificate->id);
         }
 
         return back()->with('ssl_notice', 'Certificate status refresh queued.');

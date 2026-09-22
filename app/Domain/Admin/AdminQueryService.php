@@ -39,6 +39,7 @@ final class AdminQueryService
                 'failed_orders' => Order::where('status', 'failed')->count(),
                 'external_attention' => RegistrarOperation::whereIn('status', ['ambiguous', 'action_required'])->count()
                     + DnsOperation::whereIn('status', ['ambiguous', 'action_required'])->count(),
+                'failed_queue_jobs' => DB::table('failed_jobs')->count(),
             ],
             'recent' => [
                 'payments' => Payment::with('user:id,name,email')->where('status', 'paid')->latest('paid_at')->limit(5)->get(['id', 'user_id', 'order_id', 'amount', 'currency', 'paid_at']),
@@ -188,6 +189,7 @@ final class AdminQueryService
             'stale_pending' => RegistrarOperation::where('status', 'pending')->where('started_at', '<', now()->subMinutes(15))->count() + DnsOperation::where('status', 'pending')->where('created_at', '<', now()->subMinutes(15))->count(),
             'ambiguous' => RegistrarOperation::where('status', 'ambiguous')->count() + DnsOperation::where('status', 'ambiguous')->count(),
             'action_required' => Transfer::where('status', 'action_required')->count() + SslCertificate::where('status', 'action_required')->count(),
+            'failed_queue_jobs' => DB::table('failed_jobs')->count(),
         ]];
     }
 

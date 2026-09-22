@@ -25,6 +25,8 @@ final class ProvisionDomainRegistration implements ShouldQueue
 
     public int $tries = 1;
 
+    public int $timeout = 150;
+
     public function __construct(public readonly int $orderId) {}
 
     public function handle(RegistrarGateway $registrar, OnlineNicTransactionIdGenerator $transactions): void
@@ -82,7 +84,7 @@ final class ProvisionDomainRegistration implements ShouldQueue
             $result = $registrar->registerDomain(new DomainRegistrationData($order->domain, $order->registration_period, $order->nameservers, $contactIds, $password), $operation->cltrid);
         } catch (ProviderAmbiguousResponse) {
             $operation->update(['status' => 'ambiguous', 'provider_message' => 'Provider response was ambiguous.']);
-            ReconcileDomainRegistration::dispatch($operation->id)->onConnection('database')->delay(now()->addMinute());
+            ReconcileDomainRegistration::dispatch($operation->id)->delay(now()->addMinute());
 
             return;
         } catch (OnlineNicException $exception) {

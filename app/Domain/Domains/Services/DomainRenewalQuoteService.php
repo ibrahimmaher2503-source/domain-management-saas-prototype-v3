@@ -31,9 +31,11 @@ final class DomainRenewalQuoteService
 
     public function createOrder(User $user, Domain $domain, int $period, PaymentBillingData $billing): Order
     {
-        return DB::transaction(function () use ($user, $domain, $period, $billing): Order {
+        $quote = $this->quote($user, $domain, $period);
+
+        return DB::transaction(function () use ($user, $domain, $billing, $quote): Order {
             $locked = Domain::query()->whereKey($domain->id)->lockForUpdate()->firstOrFail();
-            $quote = $this->quote($user, $locked, $period);
+            $this->assertEligible($user, $locked, $quote->period);
             if ($locked->renewalOrders()->where('user_id', $user->id)->where('type', 'domain_renewal')->whereIn('status', ['awaiting_payment', 'paid', 'provisioning'])->exists()) {
                 throw new CheckoutUnavailable('An active renewal order already exists for this domain.');
             }

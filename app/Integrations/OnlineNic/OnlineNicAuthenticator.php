@@ -9,6 +9,7 @@ final class OnlineNicAuthenticator
     /** @param array<string, scalar|array<int, scalar>|null> $payload */
     public function requestChecksum(string $transactionId, string $action, array $payload = []): string
     {
+        $documentedAction = $action;
         $action = strtolower($action);
         if ($action === 'createcontact') {
             $action = 'crtcontact';
@@ -20,6 +21,8 @@ final class OnlineNicAuthenticator
                 .implode('', array_map(static fn ($key): string => (string) ($payload[$key] ?? ''), ['registrant', 'admin', 'tech', 'billing', 'password']));
         } elseif ($action === 'parsecsr') {
             $values = (string) ($payload['productCode'] ?? '').(string) ($payload['CSR'] ?? '');
+        } elseif (in_array($action, ['cancel', 'changeapproveremail', 'resendapproveremail', 'reissue', 'resendfulfillmentemail'], true)) {
+            $values = (string) ($payload['orderId'] ?? '');
         } elseif (in_array($action, ['updatedomaindns', 'updatedomainstatus', 'requestregtransfer', 'queryregtransfer', 'cancelregtransfer'], true)) {
             $values = (string) ($payload['domaintype'] ?? '').(string) ($payload['domain'] ?? '');
         } elseif ($action === 'renewdomain') {
@@ -30,7 +33,10 @@ final class OnlineNicAuthenticator
                 : implode('', array_map(static fn ($value): string => is_array($value) ? implode('', array_map('strval', $value)) : (string) $value, $payload));
         }
 
-        return md5($this->clientId.md5($this->password).$transactionId.$action.$values);
+        $sslActions = ['order', 'info', 'getapproveremaillist', 'parsecsr', 'cancel', 'changeapproveremail', 'resendapproveremail', 'reissue', 'resendfulfillmentemail'];
+        $checksumAction = in_array($action, $sslActions, true) ? $documentedAction : $action;
+
+        return md5($this->clientId.md5($this->password).$transactionId.$checksumAction.$values);
     }
 
     public function responseChecksum(string $transactionId, string $serverTransactionId, string|int $code, string $message, string $value = ''): string

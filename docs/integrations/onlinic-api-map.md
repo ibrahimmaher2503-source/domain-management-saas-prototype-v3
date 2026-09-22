@@ -48,13 +48,13 @@ Every request has `category`, `action`, zero or more `params`, unique `cltrid`, 
 | Registrar transfer | `CancelRegTransfer` | `domaintype`, `domain` | destructive write | Cannot cancel after transfer success or failure. Application confirms a pending state before writing. |
 | SSL | `Order` | product, validity, server, contacts, CSR/organization/approver fields; order ID/price | write-billing/async | Can purchase or renew. No documented pre-order price lookup; v1 uses explicit server-side product pricing. |
 | SSL | `GetApproverEmailList` | domain; email list | read | Domain validation choices. |
-| SSL | `Cancel` | order ID | destructive write | Cancel certificate order. |
+| SSL | `Cancel` | `orderId` | destructive write | Checksum: action + orderId. Offered locally only before issuance. |
 | SSL | `Info` | order ID; full order/status/certificate data | read-sensitive | Certificate/CSR data is sensitive. |
-| SSL | `ResendApproverEmail` | order ID | write/async | Sends provider email. |
-| SSL | `ChangeApproverEmail` | order ID, approver email | write | Changes approval target. |
+| SSL | `ResendApproverEmail` | `orderId` | write/async | `PENDING` only locally; rate limited. |
+| SSL | `ChangeApproverEmail` | `orderId`, `approverEmail` | write | Provider constraint: `PENDING`; email must come from `GetApproverEmailList`. Checksum excludes email. |
 | SSL | `GetCerts` | date range; order records | read | Returns delimited `dataN` records. |
-| SSL | `Reissue` | order ID, CSR and product fields | write/async | CSR required. |
-| SSL | `ResendFulfillmentEmail` | order ID | write/async | Recovery for original certificate delivery. |
+| SSL | `Reissue` | `orderId`, `CSR`, optional documented `DNSNames` | write/async | Completed, unexpired, non-cancelled/revoked order; common name must match. V1 omits SAN changes. |
+| SSL | `ResendFulfillmentEmail` | `orderId` | write/async | Completed orders only; rate limited. |
 | SSL | `ParseCSR` | CSR/product fields; parsed CSR attributes | read | Does not issue a certificate. |
 | Account | `GetAccountBalance` | none; balance | read-sensitive | Billing source of truth. |
 | Account | `GetCustomerInfo` | none; account profile | read | Account data. |

@@ -1,6 +1,14 @@
 # OnlineNIC SSL milestone 1
 
-The implementation is limited to purchasing and reading status for certificates on domains already managed by the customer. Reissue, cancellation, resend, renewal, privacy, contacts, and auto-renew are intentionally not implemented.
+The implementation is limited to purchasing, reading status, and documented certificate maintenance for certificates on domains already managed by the customer. Renewal, privacy, contacts, and auto-renew are intentionally not implemented.
+
+## Maintenance
+
+OnlineNIC API 3.4 documents `Cancel(orderId)`, `ChangeApproverEmail(orderId, approverEmail)`, `ResendApproverEmail(orderId)`, `Reissue(orderId, CSR, DNSNames)`, and `ResendFulfillmentEmail(orderId)`. Their request checksums use the documented action spelling followed by `orderId`; the extra approver-email and CSR fields are not part of those checksum formulas. This integration omits `DNSNames` because the configured V1 DV product has no documented SAN behavior and the application must not infer it.
+
+Local lifecycle gates are conservative: cancel is offered before issuance (`PENDING`/`PRE`), approver changes and validation-email resends only during `PENDING`, and reissue or fulfillment-email resend only for an unexpired `COMPLETE` certificate. A changed approver must be selected from a fresh `GetApproverEmailList` result. Reissue first uses `ParseCSR`, rejects private-key input, and requires the documented common name match; CSR content is never recorded in operations or activity.
+
+Every maintenance write records its unique transaction ID and a pending operation before sending. Writes have no automatic retry. A lost response leaves the operation ambiguous. `Info` may reconcile cancellation, an effective approver email when returned, or a reissue that has moved back into processing; resend-email delivery cannot be proven by `Info` and remains ambiguous. Email resend endpoints are limited to one request per certificate and action every ten minutes. Customer activity contains only safe labels and statuses.
 
 ## Source mapping
 

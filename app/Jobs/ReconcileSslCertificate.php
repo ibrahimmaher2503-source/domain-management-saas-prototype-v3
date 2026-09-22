@@ -21,8 +21,9 @@ final class ReconcileSslCertificate implements ShouldQueue
 
     public function handle(SslProvider $provider): void
     {
-        $c = SslCertificate::with('order')->find($this->certificateId);
-        if (! $c || ! $c->provider_order_id || in_array($c->status, ['issued', 'failed', 'cancelled'], true)) {
+        $c = SslCertificate::with('order.registrarOperations')->find($this->certificateId);
+        $operation = $c?->order?->registrarOperations->where('status', 'ambiguous')->whereIn('operation', ['cancel_certificate', 'change_approver_email', 'reissue_certificate'])->sortByDesc('id')->first();
+        if (! $c || ! $c->provider_order_id || (in_array($c->status, ['issued', 'failed', 'cancelled'], true) && ! $operation)) {
             return;
         }try {
             $r = $provider->getCertificateOrder($c->provider_order_id);
@@ -31,8 +32,19 @@ final class ReconcileSslCertificate implements ShouldQueue
 
             return;
         }$c->update($r + ['provider_synced_at' => now()]);
+        $resolved = match ($operation?->operation) {
+            'cancel_certificate' => $r['status'] === 'cancelled',
+            'change_approver_email' => isset($r['approver_email']) && $r['approver_email'] === ($operation->safe_request_metadata['new_approver_email'] ?? null),
+            'reissue_certificate' => in_array($r['status'], ['processing', 'pending_validation'], true),
+            default => false,
+        };
+        if ($resolved) {
+            $operation->update(['status' => 'completed', 'provider_code' => '1000', 'completed_at' => now()]);
+        }
         $c->order?->update(['status' => $r['status'] === 'issued' ? 'completed' : ($r['status'] === 'failed' ? 'failed' : 'provisioning')]);
-        if (! in_array($r['status'], ['issued', 'failed', 'cancelled'], true)) {
+        if ($operation && ! $resolved) {
+            $this->again($c);
+        } elseif (! in_array($r['status'], ['issued', 'failed', 'cancelled'], true)) {
             $this->again($c);
         }
     }

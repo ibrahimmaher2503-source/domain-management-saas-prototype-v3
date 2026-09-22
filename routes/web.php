@@ -56,6 +56,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/domains/{domain}/ssl/parse', [SslController::class, 'parse'])->name('ssl.parse');
     Route::post('/domains/{domain}/ssl', [SslController::class, 'store'])->name('ssl.store');
     Route::post('/ssl/{certificate}/refresh', [SslController::class, 'refresh'])->name('ssl.refresh');
+    Route::post('/ssl/{certificate}/cancel', [SslController::class, 'cancel'])->name('ssl.cancel');
+    Route::post('/ssl/{certificate}/approver-email', [SslController::class, 'changeApproverEmail'])->name('ssl.approver-email');
+    Route::post('/ssl/{certificate}/resend-approver-email', [SslController::class, 'resendApproverEmail'])->name('ssl.resend-approver-email');
+    Route::post('/ssl/{certificate}/reissue', [SslController::class, 'reissue'])->name('ssl.reissue');
+    Route::post('/ssl/{certificate}/resend-fulfillment-email', [SslController::class, 'resendFulfillmentEmail'])->name('ssl.resend-fulfillment-email');
     Route::get('/billing', fn () => Inertia::render('Billing/Index'))->name('billing');
     Route::get('/settings', fn () => Inertia::render('Settings/Index'))->name('settings');
 });

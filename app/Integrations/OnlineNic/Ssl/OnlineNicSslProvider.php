@@ -83,6 +83,45 @@ final class OnlineNicSslProvider implements SslProvider
         $issued = $response->data['orderCompleteDate'] ?? null;
         $expires = $response->data['expire'] ?? null;
 
-        return ['status' => $status, 'provider_status' => $raw, 'issued_at' => $status === 'issued' && is_string($issued) ? Carbon::parse($issued)->toDateTimeString() : null, 'expires_at' => $status === 'issued' && is_string($expires) ? Carbon::createFromFormat('m/d/Y', $expires)->toDateString() : null];
+        $approver = $response->data['approverEmail'] ?? null;
+
+        $result = ['status' => $status, 'provider_status' => $raw, 'issued_at' => $status === 'issued' && is_string($issued) ? Carbon::parse($issued)->toDateTimeString() : null, 'expires_at' => $status === 'issued' && is_string($expires) ? Carbon::createFromFormat('m/d/Y', $expires)->toDateString() : null];
+        if (is_string($approver) && filter_var($approver, FILTER_VALIDATE_EMAIL)) {
+            $result['approver_email'] = $approver;
+        }
+
+        return $result;
+    }
+
+    public function cancelCertificate(string $orderId, string $transactionId): void
+    {
+        $this->write('Cancel', ['orderId' => $orderId], $transactionId);
+    }
+
+    public function changeApproverEmail(string $orderId, string $email, string $transactionId): void
+    {
+        $this->write('ChangeApproverEmail', ['orderId' => $orderId, 'approverEmail' => $email], $transactionId);
+    }
+
+    public function resendApproverEmail(string $orderId, string $transactionId): void
+    {
+        $this->write('ResendApproverEmail', ['orderId' => $orderId], $transactionId);
+    }
+
+    public function reissueCertificate(string $orderId, string $csr, string $transactionId): void
+    {
+        $this->write('Reissue', ['orderId' => $orderId, 'CSR' => $csr], $transactionId);
+    }
+
+    public function resendFulfillmentEmail(string $orderId, string $transactionId): void
+    {
+        $this->write('ResendFulfillmentEmail', ['orderId' => $orderId], $transactionId);
+    }
+
+    /** @param array<string, string> $params */
+    private function write(string $action, array $params, string $transactionId): void
+    {
+        $this->client->ensureAuthenticated();
+        $this->client->execute(new SslCommand($action, $params), $transactionId);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Billing\DTOs\PaymentBillingData;
 use App\Domain\Domains\Exceptions\CheckoutUnavailable;
+use App\Domain\Ssl\Services\SslMaintenanceService;
 use App\Domain\Ssl\Services\SslQuoteService;
 use App\Integrations\OnlineNic\Exceptions\OnlineNicException;
 use App\Jobs\ReconcileSslCertificate;
@@ -25,7 +26,11 @@ final class SslController extends Controller
     {
         abort_unless($certificate->user_id === $r->user()->id, 404);
 
-        return Inertia::render('SSL/Show', ['certificate' => $this->data($certificate), 'notice' => session('ssl_notice')]);
+        $activity = $certificate->order?->registrarOperations()->whereIn('operation', ['cancel_certificate', 'change_approver_email', 'resend_approver_email', 'reissue_certificate', 'resend_fulfillment_email'])->latest()->limit(20)->get()->map(fn ($op) => ['id' => $op->id, 'label' => match ($op->operation) {
+            'cancel_certificate' => 'Certificate cancelled', 'change_approver_email' => 'Approver email changed', 'resend_approver_email' => 'Validation email resent', 'reissue_certificate' => 'Certificate reissue requested', 'resend_fulfillment_email' => 'Certificate fulfillment email resent',
+        }, 'status' => $op->status, 'at' => $op->created_at?->toIso8601String()])->map(fn ($item) => in_array($item['status'], ['pending', 'ambiguous'], true) ? array_merge($item, ['label' => 'Certificate maintenance awaiting confirmation']) : ($item['status'] === 'failed' ? array_merge($item, ['label' => 'Certificate maintenance failed']) : $item)) ?? collect();
+
+        return Inertia::render('SSL/Show', ['certificate' => $this->data($certificate) + ['actions' => SslMaintenanceService::actions($certificate)], 'activity' => $activity, 'notice' => session('ssl_notice'), 'error' => session('errors')?->first('ssl')]);
     }
 
     public function quote(Request $r, Domain $domain, SslQuoteService $s): Response
@@ -83,6 +88,61 @@ final class SslController extends Controller
         }
 
         return back()->with('ssl_notice', 'Certificate status refresh queued.');
+    }
+
+    public function cancel(Request $r, SslCertificate $certificate, SslMaintenanceService $service): RedirectResponse
+    {
+        $this->owned($r, $certificate);
+        $r->validate(['confirm' => 'accepted']);
+
+        return $this->maintenance(fn () => $service->cancel($certificate), 'Certificate cancelled.');
+    }
+
+    public function changeApproverEmail(Request $r, SslCertificate $certificate, SslMaintenanceService $service): RedirectResponse
+    {
+        $this->owned($r, $certificate);
+        $data = $r->validate(['approver_email' => 'required|email', 'confirm_email' => 'required|same:approver_email']);
+
+        return $this->maintenance(fn () => $service->changeApproverEmail($certificate->load('domain', 'order'), $data['approver_email']), 'Approver email changed.');
+    }
+
+    public function resendApproverEmail(Request $r, SslCertificate $certificate, SslMaintenanceService $service): RedirectResponse
+    {
+        $this->owned($r, $certificate);
+
+        return $this->maintenance(fn () => $service->resendApproverEmail($certificate), 'Validation email resent.');
+    }
+
+    public function reissue(Request $r, SslCertificate $certificate, SslMaintenanceService $service): RedirectResponse
+    {
+        $this->owned($r, $certificate);
+        $data = $r->validate(['csr' => 'required|string|max:12000', 'confirm' => 'accepted']);
+
+        return $this->maintenance(fn () => $service->reissue($certificate->load('domain', 'order'), $data['csr']), 'Certificate reissue requested.');
+    }
+
+    public function resendFulfillmentEmail(Request $r, SslCertificate $certificate, SslMaintenanceService $service): RedirectResponse
+    {
+        $this->owned($r, $certificate);
+
+        return $this->maintenance(fn () => $service->resendFulfillmentEmail($certificate), 'Certificate delivery email requested.');
+    }
+
+    private function owned(Request $request, SslCertificate $certificate): void
+    {
+        abort_unless($certificate->user_id === $request->user()->id, 404);
+        $certificate->loadMissing('domain', 'order');
+    }
+
+    private function maintenance(callable $action, string $notice): RedirectResponse
+    {
+        try {
+            $action();
+
+            return back()->with('ssl_notice', $notice);
+        } catch (CheckoutUnavailable|OnlineNicException $exception) {
+            return back()->withErrors(['ssl' => $exception->getMessage()]);
+        }
     }
 
     private function data(SslCertificate $c): array

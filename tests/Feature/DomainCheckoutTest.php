@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Registrar\Contracts\RegistrarGateway;
+use App\Domain\Registrar\DTOs\AuthCodeResult;
 use App\Domain\Registrar\DTOs\CheckDomainData;
 use App\Domain\Registrar\DTOs\DomainAvailability;
 use App\Domain\Registrar\DTOs\DomainInfo;
@@ -11,6 +12,7 @@ use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Models\Order;
 use App\Models\User;
@@ -108,5 +110,15 @@ final class CheckoutFakeRegistrar implements RegistrarGateway
     public function updateNameservers(UpdateNameserversData $data, string $cltrid): OperationResult
     {
         throw new \LogicException('Unexpected write.');
+    }
+
+    public function setTransferLock(TransferLockData $data, string $cltrid): OperationResult
+    {
+        throw new \LogicException('Unexpected write.');
+    }
+
+    public function getAuthCode(string $domain): AuthCodeResult
+    {
+        throw new \LogicException('Unexpected read.');
     }
 }

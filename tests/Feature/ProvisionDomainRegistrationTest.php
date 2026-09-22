@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Registrar\Contracts\RegistrarGateway;
+use App\Domain\Registrar\DTOs\AuthCodeResult;
 use App\Domain\Registrar\DTOs\CheckDomainData;
 use App\Domain\Registrar\DTOs\DomainAvailability;
 use App\Domain\Registrar\DTOs\DomainInfo;
@@ -11,6 +12,7 @@ use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Exceptions\ProviderAmbiguousResponse;
 use App\Integrations\OnlineNic\Exceptions\ProviderRejectedOperation;
@@ -223,12 +225,22 @@ final class PlatformRegistrarFake implements RegistrarGateway
             throw new ProviderRejectedOperation('not found', 2001, 'not found');
         }
 
-        return new DomainInfo($domain, '2026-09-22', '2028-09-22', ['ns1.example.net', 'ns2.example.net'], 'active', 'info', 'srv-info', 1000, 'OK');
+        return new DomainInfo($domain, '2026-09-22', '2028-09-22', ['ns1.example.net', 'ns2.example.net'], 'active', null, 'info', 'srv-info', 1000, 'OK');
     }
 
     public function updateNameservers(UpdateNameserversData $data, string $cltrid): OperationResult
     {
         throw new \LogicException('Unexpected nameserver write.');
+    }
+
+    public function setTransferLock(TransferLockData $data, string $cltrid): OperationResult
+    {
+        throw new \LogicException('Unexpected write.');
+    }
+
+    public function getAuthCode(string $domain): AuthCodeResult
+    {
+        throw new \LogicException('Unexpected read.');
     }
 
     public function createContact(): never

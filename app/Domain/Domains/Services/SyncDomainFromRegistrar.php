@@ -30,6 +30,9 @@ final class SyncDomainFromRegistrar
         if ($info->providerStatus !== null && $info->providerStatus !== '') {
             $updates['provider_status'] = $info->providerStatus;
         }
+        if ($info->transferLocked !== null) {
+            $updates['transfer_locked'] = $info->transferLocked;
+        }
         try {
             $nameservers = new UpdateNameserversData($domain->name, $info->nameservers);
             $updates['nameservers'] = $nameservers->nameservers;
@@ -49,6 +52,13 @@ final class SyncDomainFromRegistrar
                 foreach ($locked->registrarOperations()->where('operation', 'update_nameservers')->where('status', 'ambiguous')->get() as $operation) {
                     $requested = $operation->safe_request_metadata['nameservers'] ?? [];
                     if ($this->sameNameservers($requested, $updates['nameservers'])) {
+                        $operation->update(['status' => 'completed', 'completed_at' => now()]);
+                    }
+                }
+            }
+            if (array_key_exists('transfer_locked', $updates)) {
+                foreach ($locked->registrarOperations()->where('operation', 'set_transfer_lock')->where('status', 'ambiguous')->get() as $operation) {
+                    if (($operation->safe_request_metadata['locked'] ?? null) === $updates['transfer_locked']) {
                         $operation->update(['status' => 'completed', 'completed_at' => now()]);
                     }
                 }

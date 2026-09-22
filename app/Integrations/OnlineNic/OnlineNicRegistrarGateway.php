@@ -3,6 +3,7 @@
 namespace App\Integrations\OnlineNic;
 
 use App\Domain\Registrar\Contracts\RegistrarGateway;
+use App\Domain\Registrar\DTOs\AuthCodeResult;
 use App\Domain\Registrar\DTOs\CheckContactData;
 use App\Domain\Registrar\DTOs\CheckDomainData;
 use App\Domain\Registrar\DTOs\ContactResult;
@@ -14,15 +15,20 @@ use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Commands\CheckContactCommand;
 use App\Integrations\OnlineNic\Commands\CheckDomainCommand;
 use App\Integrations\OnlineNic\Commands\CreateContactCommand;
 use App\Integrations\OnlineNic\Commands\CreateDomainCommand;
+use App\Integrations\OnlineNic\Commands\GetAuthCodeCommand;
 use App\Integrations\OnlineNic\Commands\GetDomainPriceCommand;
 use App\Integrations\OnlineNic\Commands\InfoDomainCommand;
+use App\Integrations\OnlineNic\Commands\InfoDomainExtraCommand;
 use App\Integrations\OnlineNic\Commands\UpdateDomainDnsCommand;
+use App\Integrations\OnlineNic\Commands\UpdateDomainStatusCommand;
 use App\Integrations\OnlineNic\Exceptions\InvalidProviderResponse;
+use App\Integrations\OnlineNic\Exceptions\OnlineNicException;
 use App\Integrations\OnlineNic\Exceptions\ProviderAmbiguousResponse;
 
 final class OnlineNicRegistrarGateway implements RegistrarGateway
@@ -105,8 +111,14 @@ final class OnlineNicRegistrarGateway implements RegistrarGateway
         }
         $dns = $response->data['dns'] ?? [];
         $nameservers = is_array($dns) ? array_values(array_map('strval', $dns)) : ($dns === '' ? [] : [(string) $dns]);
+        $transferLocked = null;
+        try {
+            $extra = $this->client->execute(new InfoDomainExtraCommand($domain, $this->tlds->domainType($domain)));
+            $transferLocked = $this->transferLockState($extra->data['status'] ?? null);
+        } catch (OnlineNicException) { /* base domain sync remains useful when security status is unavailable */
+        }
 
-        return new DomainInfo($confirmedDomain, $this->stringValue($response->data['crDate'] ?? null), $this->stringValue($response->data['exDate'] ?? null), $nameservers, $this->stringValue($response->data['status'] ?? null), $response->cltrid, $response->svtrid, $response->code, $response->message);
+        return new DomainInfo($confirmedDomain, $this->stringValue($response->data['crDate'] ?? null), $this->stringValue($response->data['exDate'] ?? null), $nameservers, $this->stringValue($response->data['status'] ?? null), $transferLocked, $response->cltrid, $response->svtrid, $response->code, $response->message);
     }
 
     public function updateNameservers(UpdateNameserversData $data, string $cltrid): OperationResult
@@ -116,6 +128,28 @@ final class OnlineNicRegistrarGateway implements RegistrarGateway
         $this->requireCompletedWrite($response, $cltrid);
 
         return new OperationResult($response->cltrid, $response->svtrid, $response->code, $response->message);
+    }
+
+    public function setTransferLock(TransferLockData $data, string $cltrid): OperationResult
+    {
+        $this->client->ensureAuthenticated();
+        $response = $this->client->execute(new UpdateDomainStatusCommand($data, $this->tlds->domainType($data->domain)), $cltrid);
+        $this->requireCompletedWrite($response, $cltrid);
+
+        return new OperationResult($response->cltrid, $response->svtrid, $response->code, $response->message);
+    }
+
+    public function getAuthCode(string $domain): AuthCodeResult
+    {
+        $this->client->ensureAuthenticated();
+        $response = $this->client->execute(new GetAuthCodeCommand($domain, $this->tlds->domainType($domain)));
+        $confirmedDomain = $this->stringValue($response->data['domain'] ?? null);
+        $authCode = $this->stringValue($response->data['password'] ?? null);
+        if ($confirmedDomain === null || strcasecmp($confirmedDomain, $domain) !== 0 || $authCode === null) {
+            throw new InvalidProviderResponse('OnlineNIC did not return a valid transfer code.', $response->code, $response->message);
+        }
+
+        return new AuthCodeResult($authCode, $response->cltrid, $response->svtrid, $response->code);
     }
 
     private function requireCompletedWrite(OnlineNicResponse $response, string $cltrid): void
@@ -128,5 +162,15 @@ final class OnlineNicRegistrarGateway implements RegistrarGateway
     private function stringValue(mixed $value): ?string
     {
         return is_scalar($value) && (string) $value !== '' ? (string) $value : null;
+    }
+
+    private function transferLockState(mixed $status): ?bool
+    {
+        $statuses = is_array($status) ? $status : (is_scalar($status) && (string) $status !== '' ? [(string) $status] : []);
+        if ($statuses === []) {
+            return null;
+        }
+
+        return in_array('clienttransferprohibited', array_map(static fn ($value): string => strtolower((string) $value), $statuses), true);
     }
 }

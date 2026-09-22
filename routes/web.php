@@ -4,6 +4,7 @@ use App\Http\Controllers\DomainCheckoutController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainDnsController;
 use App\Http\Controllers\DomainSearchController;
+use App\Http\Controllers\DomainSecurityController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileController;
@@ -32,6 +33,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/domains/{domain}', [DomainController::class, 'show'])->name('domains.show');
     Route::post('/domains/{domain}/sync', [DomainController::class, 'sync'])->name('domains.sync');
     Route::put('/domains/{domain}/nameservers', [DomainController::class, 'updateNameservers'])->name('domains.nameservers.update');
+    Route::put('/domains/{domain}/transfer-lock', [DomainSecurityController::class, 'updateTransferLock'])->name('domains.security.transfer-lock');
+    Route::post('/domains/{domain}/auth-code', [DomainSecurityController::class, 'authCode'])->middleware('throttle:5,1')->name('domains.security.auth-code');
     Route::post('/domains/{domain}/dns/connect', [DomainDnsController::class, 'connect'])->name('domains.dns.connect');
     Route::post('/domains/{domain}/dns/sync', [DomainDnsController::class, 'sync'])->name('domains.dns.sync');
     Route::post('/domains/{domain}/dns/records', [DomainDnsController::class, 'store'])->name('domains.dns.records.store');

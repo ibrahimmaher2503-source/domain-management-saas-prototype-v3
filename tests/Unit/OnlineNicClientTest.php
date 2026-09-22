@@ -3,15 +3,20 @@
 namespace Tests\Unit;
 
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
+use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Commands\CreateDomainCommand;
+use App\Integrations\OnlineNic\Commands\GetAuthCodeCommand;
 use App\Integrations\OnlineNic\Commands\UpdateDomainDnsCommand;
+use App\Integrations\OnlineNic\Commands\UpdateDomainStatusCommand;
 use App\Integrations\OnlineNic\Contracts\OnlineNicCommand;
 use App\Integrations\OnlineNic\Contracts\OnlineNicTransport;
 use App\Integrations\OnlineNic\Exceptions\ProviderAmbiguousResponse;
 use App\Integrations\OnlineNic\Exceptions\ProviderAuthenticationFailed;
 use App\Integrations\OnlineNic\OnlineNicAuthenticator;
 use App\Integrations\OnlineNic\OnlineNicClient;
+use App\Integrations\OnlineNic\OnlineNicRegistrarGateway;
+use App\Integrations\OnlineNic\OnlineNicTldResolver;
 use App\Integrations\OnlineNic\OnlineNicTransactionIdGenerator;
 use App\Integrations\OnlineNic\Xml\OnlineNicResponseParser;
 use App\Integrations\OnlineNic\Xml\OnlineNicXmlBuilder;
@@ -56,6 +61,46 @@ final class OnlineNicClientTest extends TestCase
         $xml = (new OnlineNicXmlBuilder)->build('domain', $command->action(), $command->payload(), 'tx', 'checksum');
         $this->assertSame(2, substr_count($xml, '<param name="nameserver">'));
         $this->assertStringNotContainsString('<param name="A">', $xml);
+    }
+
+    public function test_security_commands_use_documented_actions_parameters_and_checksums(): void
+    {
+        $auth = new OnlineNicAuthenticator('123', 'secret');
+        $lock = new UpdateDomainStatusCommand(new TransferLockData('example.com', true), 0);
+        $unlock = new UpdateDomainStatusCommand(new TransferLockData('example.com', false), 0);
+        $code = new GetAuthCodeCommand('example.com', 0);
+
+        $this->assertSame('UpdateDomainStatus', $lock->action());
+        $this->assertSame(['domaintype' => 0, 'domain' => 'example.com', 'addstatus' => 'clientTransferProhibited'], $lock->payload());
+        $this->assertSame(['domaintype' => 0, 'domain' => 'example.com', 'remstatus' => 'clientTransferProhibited'], $unlock->payload());
+        $this->assertSame(md5('123'.md5('secret').'tx'.'updatedomainstatus'.'0'.'example.com'), $auth->requestChecksum('tx', $lock->action(), $lock->payload()));
+        $this->assertSame('GetAuthcode', $code->action());
+        $this->assertSame(md5('123'.md5('secret').'tx'.'getauthcode'.'0'.'example.com'), $auth->requestChecksum('tx', $code->action(), $code->payload()));
+    }
+
+    public function test_domain_info_extra_normalizes_transfer_lock_and_auth_code(): void
+    {
+        $transport = new FakeOnlineNicTransport([
+            $this->response('Greeting'), $this->response('Logged in'),
+            $this->response('Info', '<data name="domain">example.com</data><data name="dns">ns1.example.net</data><data name="dns">ns2.example.net</data>'),
+            $this->response('Extra', '<data name="status">clientTransferProhibited</data>'),
+            $this->response('Auth', '<data name="domain">example.com</data><data name="password">secret-epp</data>'),
+        ]);
+        $gateway = new OnlineNicRegistrarGateway($this->client($transport), new OnlineNicTldResolver);
+
+        $this->assertTrue($gateway->getDomainInfo('example.com')->transferLocked);
+        $this->assertSame('secret-epp', $gateway->getAuthCode('example.com')->authCode);
+        $this->assertStringContainsString('<action>InfoDomainExtra</action>', $transport->writes[2]);
+        $this->assertStringContainsString('<action>GetAuthcode</action>', $transport->writes[3]);
+    }
+
+    public function test_documented_ok_status_is_unlocked_and_missing_status_is_unknown(): void
+    {
+        foreach ([['<data name="status">ok</data>', false], ['', null]] as [$extra, $expected]) {
+            $transport = new FakeOnlineNicTransport([$this->response('Greeting'), $this->response('Logged in'), $this->response('Info', '<data name="domain">example.com</data>'), $this->response('Extra', $extra)]);
+            $info = (new OnlineNicRegistrarGateway($this->client($transport), new OnlineNicTldResolver))->getDomainInfo('example.com');
+            $this->assertSame($expected, $info->transferLocked);
+        }
     }
 
     public function test_transaction_ids_are_unique_and_provider_safe(): void
@@ -139,6 +184,11 @@ XML);
     private function client(FakeOnlineNicTransport $transport): OnlineNicClient
     {
         return new OnlineNicClient($transport, new OnlineNicAuthenticator('123', 'secret'), '123', 'secret');
+    }
+
+    private function response(string $message, string $data = ''): string
+    {
+        return '<response><code>1000</code><msg>'.$message.'</msg><value>none</value><resData>'.$data.'</resData><cltrid>tx</cltrid><svtrid>srv</svtrid></response>';
     }
 }
 

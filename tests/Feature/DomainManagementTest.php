@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Registrar\Contracts\RegistrarGateway;
+use App\Domain\Registrar\DTOs\AuthCodeResult;
 use App\Domain\Registrar\DTOs\CheckDomainData;
 use App\Domain\Registrar\DTOs\DomainAvailability;
 use App\Domain\Registrar\DTOs\DomainInfo;
@@ -11,6 +12,7 @@ use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Exceptions\ProviderAmbiguousResponse;
 use App\Integrations\OnlineNic\Exceptions\ProviderRejectedOperation;
@@ -29,7 +31,7 @@ final class DomainManagementTest extends TestCase
     public function test_owner_refresh_syncs_confirmed_fields_and_records_safe_activity(): void
     {
         [$user, $domain, $fake] = $this->setupDomain();
-        $fake->info = new DomainInfo('example.com', '2026-09-22', '2028-09-22', ['NS3.Example.NET', 'ns4.example.net'], 'clientTransferProhibited', 'secret-client-id', 'secret-server-id', 1000, 'provider detail');
+        $fake->info = new DomainInfo('example.com', '2026-09-22', '2028-09-22', ['NS3.Example.NET', 'ns4.example.net'], 'clientTransferProhibited', true, 'secret-client-id', 'secret-server-id', 1000, 'provider detail');
 
         $this->actingAs($user)->post(route('domains.sync', $domain))->assertRedirect()->assertSessionHas('domain_notice');
 
@@ -48,7 +50,7 @@ final class DomainManagementTest extends TestCase
     public function test_unknown_info_fields_do_not_invent_or_erase_values(): void
     {
         [$user, $domain, $fake] = $this->setupDomain();
-        $fake->info = new DomainInfo('example.com', null, null, [], null, 'read', 'server', 1000, 'OK');
+        $fake->info = new DomainInfo('example.com', null, null, [], null, null, 'read', 'server', 1000, 'OK');
 
         $this->actingAs($user)->post(route('domains.sync', $domain))->assertRedirect();
 
@@ -205,7 +207,7 @@ final class ManagementFakeRegistrar implements RegistrarGateway
 
     public function __construct()
     {
-        $this->info = new DomainInfo('example.com', null, null, ['ns1.old.example', 'ns2.old.example'], null, 'read', 'server', 1000, 'OK');
+        $this->info = new DomainInfo('example.com', null, null, ['ns1.old.example', 'ns2.old.example'], null, null, 'read', 'server', 1000, 'OK');
     }
 
     public function checkDomain(CheckDomainData $data): DomainAvailability
@@ -239,7 +241,7 @@ final class ManagementFakeRegistrar implements RegistrarGateway
         $this->writeData = $data;
         ($this->beforeWrite)?->__invoke();
         if ($this->reflectWriteInInfo) {
-            $this->info = new DomainInfo($data->domain, null, null, $data->nameservers, null, 'read', 'server', 1000, 'OK');
+            $this->info = new DomainInfo($data->domain, null, null, $data->nameservers, null, null, 'read', 'server', 1000, 'OK');
         }
         if ($this->writeMode === 'ambiguous') {
             throw new ProviderAmbiguousResponse('ambiguous');
@@ -249,5 +251,15 @@ final class ManagementFakeRegistrar implements RegistrarGateway
         }
 
         return new OperationResult($cltrid, 'srv-'.$cltrid, 1000, 'OK');
+    }
+
+    public function setTransferLock(TransferLockData $data, string $cltrid): OperationResult
+    {
+        throw new \LogicException('Unexpected write.');
+    }
+
+    public function getAuthCode(string $domain): AuthCodeResult
+    {
+        throw new \LogicException('Unexpected read.');
     }
 }

@@ -7,6 +7,7 @@ use App\Domain\Dns\Exceptions\AmbiguousDnsWrite;
 use App\Domain\Dns\Exceptions\DnsProviderException;
 use App\Domain\Dns\Services\DnsRecordData;
 use App\Domain\Registrar\Contracts\RegistrarGateway;
+use App\Domain\Registrar\DTOs\AuthCodeResult;
 use App\Domain\Registrar\DTOs\CheckDomainData;
 use App\Domain\Registrar\DTOs\DomainAvailability;
 use App\Domain\Registrar\DTOs\DomainInfo;
@@ -15,6 +16,7 @@ use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\Cloudflare\CloudflareClient;
 use App\Integrations\Cloudflare\CloudflareDnsProvider;
@@ -289,7 +291,7 @@ final class FakeDnsRegistrar implements RegistrarGateway
 
     public function getDomainInfo(string $domain): DomainInfo
     {
-        return new DomainInfo($domain, null, null, $this->nameservers, null, 'read', 'server', 1000, 'OK');
+        return new DomainInfo($domain, null, null, $this->nameservers, null, null, 'read', 'server', 1000, 'OK');
     }
 
     public function updateNameservers(UpdateNameserversData $data, string $cltrid): OperationResult
@@ -300,5 +302,15 @@ final class FakeDnsRegistrar implements RegistrarGateway
         } $this->nameservers = $data->nameservers;
 
         return new OperationResult($cltrid, 'server', 1000, 'OK');
+    }
+
+    public function setTransferLock(TransferLockData $data, string $cltrid): OperationResult
+    {
+        throw new \LogicException('Unexpected write.');
+    }
+
+    public function getAuthCode(string $domain): AuthCodeResult
+    {
+        throw new \LogicException('Unexpected read.');
     }
 }

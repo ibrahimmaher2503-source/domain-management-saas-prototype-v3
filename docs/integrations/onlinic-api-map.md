@@ -21,11 +21,11 @@ Every request has `category`, `action`, zero or more `params`, unique `cltrid`, 
 | Domains | `CreateDomain` | `domaintype`, `mltype`, `domain`, `period`, DNS, contact IDs, password; dates | write-billing | TLD-specific required contacts and checksum composition. |
 | Domains | `RenewDomain` | `domaintype`, `domain`, `period` | write-billing | Total term must satisfy the TLD rules. |
 | Domains | `DeleteDomain` | `domaintype`, `domain` | destructive write | Provider documents quota/eligibility limits for some TLDs. |
-| Domains | `UpdateDomainStatus` | `domaintype`, `domain`, `addstatus`/remove status | write | Documents `clientTransferProhibited`; exact removal parameter needs provider confirmation. |
+| Domains | `UpdateDomainStatus` | `domaintype`, `domain`, `addstatus` or `remstatus` | write | `clientTransferProhibited` is added with `addstatus` and removed with `remstatus`; the source describes both operations and names `remstatus` explicitly. |
 | Domains | `UpdateDomainExtra` | `domaintype`, `domain`, value-added service field | write | Provider-specific VAS; do not assume auto-renew/ID Shield semantics without mapping. |
 | Domains | `UpdateDomainDns` | `domaintype`, `domain`, 2–6 `nameserver` values | write | Registrar nameserver assignment, not DNS zone hosting. |
 | Domains | `UpdateDomainPwd` | domain/password fields | write-sensitive | Domain transfer/auth password mutation. |
-| Domains | `InfoDomainExtra` | `domaintype`, `domain`; VAS status | read | Returns values such as `clientAutoRenew`, `clientIdShield`, `ok`. |
+| Domains | `InfoDomainExtra` | `domaintype`, `domain`; registry `status` and VAS data | read | The documented `status` is used to normalize `clientTransferProhibited`; a missing status remains unknown. |
 | Domains | `GetAuthcode` | `domaintype`, `domain`; password/auth code | read-sensitive | Never show in logs or broad admin listings. |
 | Domains | `GetTmNotice` | TLD/domain lookup fields | read | Trademark notice data; exact field rules are TLD-specific. |
 | Domains | `GetDomainPrice` | `domaintype`, `period`, `op` (`reg`, `renew`, `transfer`), lookup key | read-billing | Returns wholesale/retail price and currency-related fields. |

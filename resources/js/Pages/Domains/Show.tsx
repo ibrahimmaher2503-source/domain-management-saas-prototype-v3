@@ -2,15 +2,16 @@ import AppLayout from '@/Layouts/AppLayout';
 import DomainTabs, { type DomainTab } from '@/Components/Domain/DomainTabs';
 import PageHeader from '@/Components/PageHeader';
 import DnsPanel from '@/Components/Domain/DnsPanel';
+import SecurityPanel from '@/Components/Domain/SecurityPanel';
 import { Head, Link, router } from '@inertiajs/react';
 import { FormEvent, useEffect, useState } from 'react';
 
-type Domain = { id: number; name: string; status: string; registered_at: string | null; expires_at: string | null; nameservers: string[]; provider_status: string | null; provider_synced_at?: string | null };
+type Domain = { id: number; name: string; status: string; registered_at: string | null; expires_at: string | null; nameservers: string[]; transfer_locked: boolean | null; provider_synced_at?: string | null };
 type Activity = { id: number; label: string; status: string; at: string | null };
 type DnsZone = { status: string; assigned_nameservers: string[] | null; delegated: boolean; ambiguous: boolean; provider_synced_at: string | null };
 type DnsRecord = { id: string; type: string; name: string; content?: string; data?: { priority?: number; weight?: number; port?: number; target?: string; flags?: number; tag?: string; value?: string }; ttl: number; priority?: number; proxied?: boolean; proxiable?: boolean };
 
-export default function Show({ domain, dnsZone = null, dnsRecords = [], dnsError, initialTab = 'Overview', activity = [], notice, error }: { domain: Domain; dnsZone?: DnsZone | null; dnsRecords?: DnsRecord[]; dnsError?: string | null; initialTab?: DomainTab; activity?: Activity[]; notice?: string | null; error?: string | null }) {
+export default function Show({ domain, securityPending = false, dnsZone = null, dnsRecords = [], dnsError, initialTab = 'Overview', activity = [], notice, error }: { domain: Domain; securityPending?: boolean; dnsZone?: DnsZone | null; dnsRecords?: DnsRecord[]; dnsError?: string | null; initialTab?: DomainTab; activity?: Activity[]; notice?: string | null; error?: string | null }) {
     const [tab, setTab] = useState<DomainTab>(initialTab);
     const [editing, setEditing] = useState(false);
     const [nameservers, setNameservers] = useState(domain.nameservers.length >= 2 ? domain.nameservers : ['', '']);
@@ -39,7 +40,7 @@ export default function Show({ domain, dnsZone = null, dnsRecords = [], dnsError
             <DomainTabs active={tab} onChange={selectTab} />
             {tab === 'Overview' && <section className="rounded-xl border border-[#e5e5e5] bg-white p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">Domain overview</h2><button type="button" onClick={() => router.post(route('domains.sync', domain.id), {}, { preserveScroll: true })} className="rounded-md border border-[#d4d4d4] px-3 py-2 text-sm font-medium">Refresh domain</button></div>
-                <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-[#737373]">Domain</dt><dd className="mt-1 font-medium">{domain.name}</dd></div><div><dt className="text-[#737373]">Lifecycle status</dt><dd className="mt-1 font-medium">{domain.status}</dd></div><div><dt className="text-[#737373]">Registered</dt><dd className="mt-1 font-medium">{domain.registered_at ?? 'Unknown'}</dd></div><div><dt className="text-[#737373]">Expires</dt><dd className="mt-1 font-medium">{domain.expires_at ?? 'Unknown'}</dd></div><div><dt className="text-[#737373]">Provider status</dt><dd className="mt-1 font-medium">{domain.provider_status ?? 'Unknown'}</dd></div><div><dt className="text-[#737373]">Last synced</dt><dd className="mt-1 font-medium">{domain.provider_synced_at ? new Date(domain.provider_synced_at).toLocaleString() : 'Not synced yet'}</dd></div><div className="sm:col-span-2"><dt className="text-[#737373]">Current nameservers</dt><dd className="mt-1 font-medium">{domain.nameservers.length ? domain.nameservers.join(', ') : 'Unknown'}</dd></div></dl>
+                <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-[#737373]">Domain</dt><dd className="mt-1 font-medium">{domain.name}</dd></div><div><dt className="text-[#737373]">Lifecycle status</dt><dd className="mt-1 font-medium">{domain.status}</dd></div><div><dt className="text-[#737373]">Registered</dt><dd className="mt-1 font-medium">{domain.registered_at ?? 'Unknown'}</dd></div><div><dt className="text-[#737373]">Expires</dt><dd className="mt-1 font-medium">{domain.expires_at ?? 'Unknown'}</dd></div><div><dt className="text-[#737373]">Last synced</dt><dd className="mt-1 font-medium">{domain.provider_synced_at ? new Date(domain.provider_synced_at).toLocaleString() : 'Not synced yet'}</dd></div><div className="sm:col-span-2"><dt className="text-[#737373]">Current nameservers</dt><dd className="mt-1 font-medium">{domain.nameservers.length ? domain.nameservers.join(', ') : 'Unknown'}</dd></div></dl>
             </section>}
             {tab === 'Nameservers' && <section className="rounded-xl border border-[#e5e5e5] bg-white p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">Current Nameservers</h2>{!editing && <button type="button" onClick={() => setEditing(true)} className="rounded-md border border-[#d4d4d4] px-3 py-2 text-sm font-medium">Edit Nameservers</button>}</div>
@@ -55,8 +56,9 @@ export default function Show({ domain, dnsZone = null, dnsRecords = [], dnsError
                 </form>}
             </section>}
             {tab === 'DNS' && <DnsPanel domainId={domain.id} domainName={domain.name} zone={dnsZone} records={dnsRecords} error={dnsError} />}
+            {tab === 'Security' && <SecurityPanel domainId={domain.id} transferLocked={domain.transfer_locked} pending={securityPending} />}
             {tab === 'Activity' && <section className="rounded-xl border border-[#e5e5e5] bg-white p-5"><h2 className="font-semibold">Activity</h2>{activity.length ? <ol className="mt-4 divide-y divide-[#e5e5e5]">{activity.map((item) => <li key={item.id} className="flex justify-between gap-3 py-3 text-sm"><span>{item.label}</span><time className="text-[#737373]">{item.at ? new Date(item.at).toLocaleString() : 'Pending'}</time></li>)}</ol> : <p className="mt-2 text-sm text-[#737373]">No domain activity yet.</p>}</section>}
-            {!['Overview', 'Nameservers', 'DNS', 'Activity'].includes(tab) && <section className="rounded-xl border border-[#e5e5e5] bg-white p-5"><h2 className="font-semibold">{tab}</h2><p className="mt-2 text-sm text-[#525252]">Management will be available in a later milestone.</p></section>}
+            {!['Overview', 'Nameservers', 'DNS', 'Security', 'Activity'].includes(tab) && <section className="rounded-xl border border-[#e5e5e5] bg-white p-5"><h2 className="font-semibold">{tab}</h2><p className="mt-2 text-sm text-[#525252]">Management will be available in a later milestone.</p></section>}
             <Link href={route('domains')} className="mt-5 inline-block text-sm underline">Back to My Domains</Link>
         </div>
     </AppLayout>;

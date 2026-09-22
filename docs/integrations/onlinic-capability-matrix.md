@@ -10,8 +10,8 @@ This is a source-grounded planning matrix, not a promise that every TLD supports
 | Domain info | Yes | domain and type | Enable, with sensitive-field redaction. |
 | Registrar nameserver assignment | Yes | 2–6 nameserver values | Enable. |
 | Registered host/glue objects | Yes | hostname, IP addresses; parent domain in account | Separate advanced capability. |
-| Transfer lock/status | Partial | `UpdateDomainStatus`, `QueryRegTransfer`; exact add/remove semantics need confirmation | Do not expose broad lock controls yet. |
-| Auth code | Yes | `GetAuthcode`; sensitive output | Admin/restricted workflow only. |
+| Transfer lock/status | Yes for v1 `.com` controls | `UpdateDomainStatus` uses `addstatus`/`remstatus` with `clientTransferProhibited`; `InfoDomainExtra.status` confirms state | Owner security controls with ambiguous-write reconciliation. |
+| Auth code | Yes | `GetAuthcode`; sensitive output | Owner-only, current-password verified, rate-limited, and never persisted. |
 | Inner-reseller transfer | Yes | current account ID/password and transfer status | Separate workflow. |
 | Registrar transfer | Yes | request/query/cancel; asynchronous codes and status | Reconciliation required. |
 | ID Shield | Yes | apply, pause/resume, renew, delete; fees and limits | Separate paid add-on. |

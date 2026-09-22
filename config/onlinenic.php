@@ -14,4 +14,12 @@ return [
     'account_currency' => env('ONLINENIC_ACCOUNT_CURRENCY'),
     'customer_billing_currency' => env('CUSTOMER_BILLING_CURRENCY'),
     'session_request_limit' => 150,
+    'ote' => [
+        'allow_writes' => filter_var(env('ONLINENIC_OTE_ALLOW_WRITES', false), FILTER_VALIDATE_BOOL),
+        'confirm' => env('ONLINENIC_OTE_CONFIRM'),
+        'test_domain' => env('ONLINENIC_OTE_TEST_DOMAIN'),
+        'test_domain_password' => env('ONLINENIC_OTE_TEST_DOMAIN_PASSWORD'),
+        'test_nameserver_1' => env('ONLINENIC_OTE_TEST_NAMESERVER_1'),
+        'test_nameserver_2' => env('ONLINENIC_OTE_TEST_NAMESERVER_2'),
+    ],
 ];

@@ -5,8 +5,8 @@ This application is a Laravel + Inertia/React domain-management service. V1 reso
 ## Required runtime
 
 - PHP 8.3+, Composer dependencies installed with `--no-dev` for production.
-- PostgreSQL (the production example uses `pgsql`). Run migrations with `php artisan migrate --force`.
-- Redis for cache, sessions, and queues. Production is intentionally not supported with the database queue fallback.
+- MySQL or MariaDB with the PHP `pdo_mysql` extension. Run migrations with `php artisan migrate --force`.
+- Database-backed cache, sessions, and queues. Redis is not required.
 - A long-running queue worker and one scheduler process/cron entry.
 - TLS terminated by a trusted proxy or the web server. Set `APP_URL` to `https://...` and list only real proxy addresses in `TRUSTED_PROXIES`.
 
@@ -14,13 +14,15 @@ Copy `.env.production.example` into the secret manager/template used by the depl
 
 ## Preflight and health
 
-Run `php artisan app:preflight` before enabling traffic. It is read-only and exits non-zero for missing keys, debug mode, non-HTTPS production configuration, database failure, or a missing Redis production dependency. Provider credentials are reported as warnings because preflight never makes external provider calls.
+Run `php artisan app:preflight` before enabling traffic. It is read-only and exits non-zero for missing keys, debug mode, non-HTTPS production configuration, database failure, or non-persistent production drivers. Provider credentials are reported as warnings because preflight never makes external provider calls.
 
-`GET /health/ready` is the load-balancer readiness probe. It checks the application, database, and Redis only, returning 200 when ready and 503 otherwise. It does not prove OnlineNIC, Paymob, or Cloudflare availability.
+`GET /health/ready` is the load-balancer readiness probe. It checks the application and database only, returning 200 when ready and 503 otherwise. It does not prove OnlineNIC, Paymob, or Cloudflare availability.
 
 ## Queue and scheduler
 
-Workers must run `php artisan queue:work redis --sleep=3 --tries=1 --timeout=160 --max-time=3600`. The worker timeout is longer than every job timeout (30–150 seconds) and `stopwaitsecs` must be at least 190 seconds. Failed jobs are retained in `failed_jobs`; admin operations expose only the count and safe status metadata.
+Workers must run `php artisan queue:work database --sleep=3 --tries=1 --timeout=160 --max-time=3600`. The worker timeout is longer than every job timeout (30–150 seconds) and `stopwaitsecs` must be at least 190 seconds. Failed jobs are retained in `failed_jobs`; admin operations expose only the count and safe status metadata.
+
+On cPanel without a process supervisor, run a non-overlapping worker from cron every minute: `flock -n /tmp/domain-saas-queue.lock php /absolute/path/artisan queue:work database --stop-when-empty --tries=1 --timeout=160 --max-jobs=50`. Replace the path with the real private application path. Do not place the application root under `public_html`; expose only its `public/` directory.
 
 Run the scheduler every minute:
 

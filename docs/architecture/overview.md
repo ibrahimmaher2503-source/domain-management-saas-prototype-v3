@@ -16,13 +16,13 @@ The browser owns presentation and user intent only. Laravel owns authentication,
 ## Platform services
 
 ```text
-Laravel -> PostgreSQL
-        -> Redis
+Laravel -> MySQL / MariaDB
+        -> Database-backed cache, sessions, and queues
         -> Queue workers
         -> Scheduler
 ```
 
-PostgreSQL is the system of record for platform, user, domain, pricing, order, operation, and audit data. Redis supports queues, locks, and cache where justified. Queue workers handle long-running or asynchronous provider work. The scheduler runs bounded reconciliation and renewal jobs; it does not bypass authorization or operation records.
+MySQL or MariaDB is the system of record for platform, user, domain, pricing, order, operation, audit, cache, session, and queue data. Queue workers handle long-running or asynchronous provider work. The scheduler runs bounded reconciliation and renewal jobs; it does not bypass authorization or operation records.
 
 ## Ownership
 

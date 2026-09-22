@@ -11,7 +11,7 @@ npm run build
 php artisan serve
 ```
 
-Authentication is provided by Laravel Breeze. PostgreSQL, Redis, queue, and cache settings are documented in `.env.example`; local rendering does not require live infrastructure until database-backed features are introduced.
+Authentication is provided by Laravel Breeze. MySQL/MariaDB-backed queue, session, and cache settings are documented in `.env.example`; Redis is not required.
 
 ## Prototype reference
 

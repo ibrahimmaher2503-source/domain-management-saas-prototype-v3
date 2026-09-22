@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Redis;
 use Throwable;
 
 final class PreflightCommand extends Command
@@ -30,16 +29,10 @@ final class PreflightCommand extends Command
             $this->result('FAIL', 'Database connectivity');
         }
 
-        $redisDrivers = config('cache.default') === 'redis' && config('session.driver') === 'redis' && config('queue.default') === 'redis';
-        $this->result($redisDrivers ? 'PASS' : ($production ? 'FAIL' : 'WARN'), 'Redis cache, session, and queue configuration');
-        if ($redisDrivers) {
-            try {
-                Redis::connection()->command('ping');
-                $this->result('PASS', 'Redis connectivity');
-            } catch (Throwable) {
-                $this->result('FAIL', 'Redis connectivity');
-            }
-        }
+        $productionDrivers = in_array(config('cache.default'), ['database', 'file'], true)
+            && config('session.driver') === 'database'
+            && config('queue.default') === 'database';
+        $this->result($productionDrivers ? 'PASS' : ($production ? 'FAIL' : 'WARN'), 'Persistent cache, session, and queue configuration');
 
         $this->result($this->configured(['onlinenic.client_id', 'onlinenic.password']) ? 'PASS' : 'WARN', 'OnlineNIC credentials');
         $this->result($this->configured(['onlinenic.registrant_contact_id', 'onlinenic.admin_contact_id', 'onlinenic.tech_contact_id', 'onlinenic.billing_contact_id']) ? 'PASS' : 'WARN', 'OnlineNIC platform contacts');

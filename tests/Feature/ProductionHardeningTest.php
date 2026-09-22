@@ -16,11 +16,14 @@ final class ProductionHardeningTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_readiness_is_provider_independent_when_redis_is_not_required(): void
+    public function test_readiness_depends_only_on_the_application_database(): void
     {
         $response = $this->getJson('/health/ready');
 
-        $response->assertOk()->assertJsonPath('status', 'ready')->assertJsonPath('checks.redis', 'not_required');
+        $response->assertOk()
+            ->assertJsonPath('status', 'ready')
+            ->assertJsonPath('checks.database', 'ready')
+            ->assertJsonMissingPath('checks.redis');
     }
 
     public function test_web_responses_include_security_headers(): void
@@ -36,6 +39,22 @@ final class ProductionHardeningTest extends TestCase
         $this->artisan('app:preflight')
             ->expectsOutputToContain('[WARN] Application environment')
             ->assertExitCode(0);
+    }
+
+    public function test_production_preflight_accepts_database_backed_runtime_drivers(): void
+    {
+        $this->app['env'] = 'production';
+        config()->set([
+            'app.debug' => false,
+            'app.url' => 'https://domains.example.com',
+            'cache.default' => 'database',
+            'session.driver' => 'database',
+            'queue.default' => 'database',
+        ]);
+
+        $this->artisan('app:preflight')
+            ->expectsOutputToContain('[PASS] Persistent cache, session, and queue configuration')
+            ->assertSuccessful();
     }
 
     public function test_reconciliation_sweep_is_registered_with_a_schedule(): void

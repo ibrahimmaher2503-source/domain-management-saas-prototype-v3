@@ -1,3 +1,3 @@
 # Architecture
 
-See `docs/architecture/`. Request path: Browser -> Laravel/Inertia -> Application/Domain -> RegistrarGateway -> provider integration. PostgreSQL is the future system of record; Redis is environment-configured for queues and cache.
+See `docs/architecture/`. Request path: Browser -> Laravel/Inertia -> Application/Domain -> RegistrarGateway -> provider integration. MySQL or MariaDB is the system of record and backs queues, sessions, and cache.

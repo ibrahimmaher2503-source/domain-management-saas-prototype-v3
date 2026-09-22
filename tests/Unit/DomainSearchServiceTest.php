@@ -14,6 +14,8 @@ use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\RenewalResult;
+use App\Domain\Registrar\DTOs\RenewDomainData;
 use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Commands\CheckDomainCommand;
@@ -28,7 +30,7 @@ final class DomainSearchServiceTest extends TestCase
     public function test_commands_use_documented_actions_and_payloads(): void
     {
         $check = new CheckDomainCommand('example.com', 0);
-        $price = new GetDomainPriceCommand('example.com', 0, 1);
+        $price = new GetDomainPriceCommand('example.com', 0, 'reg', 1);
 
         $this->assertSame('CheckDomain', $check->action());
         $this->assertSame(['domaintype' => 0, 'domain' => 'example.com'], $check->payload());
@@ -85,6 +87,11 @@ final class FakeRegistrarGateway implements RegistrarGateway
     }
 
     public function registerDomain(DomainRegistrationData $data, string $cltrid): RegistrationResult
+    {
+        throw new InvalidArgumentException('Unexpected write.');
+    }
+
+    public function renewDomain(RenewDomainData $data, string $cltrid): RenewalResult
     {
         throw new InvalidArgumentException('Unexpected write.');
     }

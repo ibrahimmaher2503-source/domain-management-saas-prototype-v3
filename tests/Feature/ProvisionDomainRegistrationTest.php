@@ -12,6 +12,8 @@ use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\RenewalResult;
+use App\Domain\Registrar\DTOs\RenewDomainData;
 use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Exceptions\ProviderAmbiguousResponse;
@@ -216,6 +218,11 @@ final class PlatformRegistrarFake implements RegistrarGateway
         }
 
         return new RegistrationResult($data->domain, '2026-09-22', '2028-09-22', $cltrid, 'srv-'.$cltrid, 1000, 'OK');
+    }
+
+    public function renewDomain(RenewDomainData $data, string $cltrid): RenewalResult
+    {
+        throw new \LogicException('Unexpected renewal.');
     }
 
     public function getDomainInfo(string $domain): DomainInfo

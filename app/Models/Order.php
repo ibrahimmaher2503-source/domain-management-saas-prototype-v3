@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['user_id', 'type', 'status', 'domain', 'tld', 'registration_period', 'provider', 'provider_cost', 'customer_price', 'currency', 'premium', 'tmch_lookup_key', 'registration_data', 'billing_data', 'nameservers', 'provider_contact_ids', 'domain_password', 'provisioning_failure_reason'])]
+#[Fillable(['user_id', 'domain_id', 'type', 'status', 'domain', 'tld', 'registration_period', 'provider', 'provider_cost', 'customer_price', 'currency', 'premium', 'tmch_lookup_key', 'registration_data', 'billing_data', 'nameservers', 'provider_contact_ids', 'domain_password', 'provisioning_failure_reason'])]
 class Order extends Model
 {
     protected $hidden = ['registration_data', 'billing_data', 'provider_contact_ids', 'domain_password'];
@@ -30,6 +30,11 @@ class Order extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function renewalDomain(): BelongsTo
+    {
+        return $this->belongsTo(Domain::class, 'domain_id');
     }
 
     public function payments(): HasMany

@@ -3,6 +3,7 @@
 use App\Http\Controllers\DomainCheckoutController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainDnsController;
+use App\Http\Controllers\DomainRenewalController;
 use App\Http\Controllers\DomainSearchController;
 use App\Http\Controllers\DomainSecurityController;
 use App\Http\Controllers\OrderController;
@@ -32,6 +33,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/orders/{order}/pay', [PaymentController::class, 'pay'])->name('orders.pay');
     Route::get('/domains/{domain}', [DomainController::class, 'show'])->name('domains.show');
     Route::post('/domains/{domain}/sync', [DomainController::class, 'sync'])->name('domains.sync');
+    Route::post('/domains/{domain}/renewal', [DomainRenewalController::class, 'store'])->name('domains.renewal.store');
     Route::put('/domains/{domain}/nameservers', [DomainController::class, 'updateNameservers'])->name('domains.nameservers.update');
     Route::put('/domains/{domain}/transfer-lock', [DomainSecurityController::class, 'updateTransferLock'])->name('domains.security.transfer-lock');
     Route::post('/domains/{domain}/auth-code', [DomainSecurityController::class, 'authCode'])->middleware('throttle:5,1')->name('domains.security.auth-code');

@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Domain\Dns\Exceptions\DnsProviderException;
 use App\Domain\Dns\Services\ManageDnsRecords;
+use App\Domain\Domains\Exceptions\CheckoutUnavailable;
 use App\Domain\Domains\Services\ChangeDomainNameservers;
+use App\Domain\Domains\Services\DomainRenewalQuoteService;
 use App\Domain\Domains\Services\SyncDomainFromRegistrar;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Exceptions\OnlineNicException;
@@ -24,16 +26,22 @@ final class DomainController extends Controller
         return Inertia::render('Domains/Index', ['domains' => $domains]);
     }
 
-    public function show(Request $request, Domain $domain, ManageDnsRecords $records, SyncDomainFromRegistrar $registrarSync): Response
+    public function show(Request $request, Domain $domain, ManageDnsRecords $records, SyncDomainFromRegistrar $registrarSync, DomainRenewalQuoteService $renewals): Response
     {
         abort_unless($domain->user_id === $request->user()->id, 404);
 
-        $activity = $domain->registrarOperations()->whereIn('operation', ['domain_registration', 'domain_sync', 'update_nameservers', 'set_transfer_lock', 'get_auth_code'])->latest()->limit(20)->get()->map(static fn ($operation): array => [
+        $activity = $domain->registrarOperations()->whereIn('operation', ['domain_registration', 'domain_sync', 'update_nameservers', 'set_transfer_lock', 'get_auth_code', 'domain_renewal'])->latest()->limit(20)->get()->map(static fn ($operation): array => [
             'id' => $operation->id,
             'label' => match ($operation->operation) {
                 'domain_registration' => 'Domain registered',
                 'domain_sync' => 'Domain synced',
                 'get_auth_code' => 'Transfer code requested',
+                'domain_renewal' => match ($operation->status) {
+                    'completed' => 'Domain renewed',
+                    'failed' => 'Domain renewal failed',
+                    'ambiguous' => 'Domain renewal awaiting confirmation',
+                    default => 'Domain renewal processing',
+                },
                 'set_transfer_lock' => match ($operation->status) {
                     'completed' => ($operation->safe_request_metadata['locked'] ?? false) ? 'Transfer lock enabled' : 'Transfer lock disabled',
                     'failed' => 'Transfer lock change failed',
@@ -68,7 +76,20 @@ final class DomainController extends Controller
             'at' => $item->updated_at?->toIso8601String(),
         ])->all() ?? [];
 
-        return Inertia::render('Domains/Show', ['domain' => $this->summary($domain), 'securityPending' => $domain->registrarOperations()->where('operation', 'set_transfer_lock')->whereIn('status', ['pending', 'ambiguous'])->exists(), 'dnsZone' => $zone ? ['status' => $zone->status, 'assigned_nameservers' => $zone->assigned_nameservers, 'provider_synced_at' => $zone->provider_synced_at?->toIso8601String(), 'delegated' => $registrarSync->sameNameservers($domain->nameservers ?? [], $zone->assigned_nameservers ?? []), 'ambiguous' => $zone->operations()->whereIn('status', ['pending', 'ambiguous'])->exists()] : null, 'dnsRecords' => $dnsRecords, 'dnsError' => $dnsError, 'initialTab' => $request->query('tab') === 'dns' ? 'DNS' : 'Overview', 'activity' => collect(array_merge($activity->all(), $dnsActivity))->sortByDesc('at')->take(20)->values()->all(), 'notice' => session('domain_notice'), 'error' => session('domain_error')]);
+        $renewalQuote = null;
+        $renewalError = null;
+        if ($request->query('tab') === 'renewal') {
+            try {
+                $renewalQuote = $renewals->quote($request->user(), $domain, (int) $request->query('period', 1));
+            } catch (CheckoutUnavailable|InvalidArgumentException|OnlineNicException $exception) {
+                $renewalError = $exception instanceof CheckoutUnavailable ? $exception->getMessage() : 'The current renewal price could not be loaded.';
+            }
+        }
+        $renewalPaymentActivity = $domain->renewalOrders()->whereHas('payments', fn ($query) => $query->where('status', 'paid'))->latest()->get()->map(static fn ($order): array => ['id' => 'renewal-payment-'.$order->id, 'label' => 'Renewal payment confirmed', 'status' => 'completed', 'at' => $order->updated_at?->toIso8601String()])->all();
+
+        return Inertia::render('Domains/Show', ['domain' => $this->summary($domain), 'securityPending' => $domain->registrarOperations()->where('operation', 'set_transfer_lock')->whereIn('status', ['pending', 'ambiguous'])->exists(), 'dnsZone' => $zone ? ['status' => $zone->status, 'assigned_nameservers' => $zone->assigned_nameservers, 'provider_synced_at' => $zone->provider_synced_at?->toIso8601String(), 'delegated' => $registrarSync->sameNameservers($domain->nameservers ?? [], $zone->assigned_nameservers ?? []), 'ambiguous' => $zone->operations()->whereIn('status', ['pending', 'ambiguous'])->exists()] : null, 'dnsRecords' => $dnsRecords, 'dnsError' => $dnsError, 'renewalQuote' => $renewalQuote, 'renewalError' => $renewalError, 'initialTab' => match ($request->query('tab')) {
+            'dns' => 'DNS', 'renewal' => 'Renewal', default => 'Overview'
+        }, 'activity' => collect(array_merge($activity->all(), $dnsActivity, $renewalPaymentActivity))->sortByDesc('at')->take(20)->values()->all(), 'notice' => session('domain_notice'), 'error' => session('domain_error')]);
     }
 
     public function sync(Request $request, Domain $domain, SyncDomainFromRegistrar $sync): RedirectResponse

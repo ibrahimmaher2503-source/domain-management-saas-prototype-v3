@@ -16,6 +16,8 @@ use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\RenewalResult;
+use App\Domain\Registrar\DTOs\RenewDomainData;
 use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\Cloudflare\CloudflareClient;
@@ -285,6 +287,11 @@ final class FakeDnsRegistrar implements RegistrarGateway
     }
 
     public function registerDomain(DomainRegistrationData $data, string $cltrid): RegistrationResult
+    {
+        throw new \LogicException;
+    }
+
+    public function renewDomain(RenewDomainData $data, string $cltrid): RenewalResult
     {
         throw new \LogicException;
     }

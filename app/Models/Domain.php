@@ -31,6 +31,11 @@ class Domain extends Model
         return $this->hasMany(RegistrarOperation::class);
     }
 
+    public function renewalOrders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
     public function dnsZone(): HasOne
     {
         return $this->hasOne(DnsZone::class);

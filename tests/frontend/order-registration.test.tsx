@@ -10,7 +10,7 @@ vi.mock('@inertiajs/react', async () => {
     return { ...actual, Head: () => null, Link: ({ children, href }: { children: ReactNode; href: string }) => <a href={href}>{children}</a> };
 });
 
-const order = { id: 1, domain: 'example.com', status: 'paid', registration_period: 1, customer_price: '10.31', currency: 'EGP', nameservers: ['ns1.example.net', 'ns2.example.net'], created_at: '2026-09-22' };
+const order = { id: 1, type: 'domain_registration' as const, domain: 'example.com', status: 'paid', registration_period: 1, customer_price: '10.31', currency: 'EGP', nameservers: ['ns1.example.net', 'ns2.example.net'], created_at: '2026-09-22' };
 
 describe('registration order status', () => {
     it('shows payment confirmation without provider internals', () => {
@@ -32,5 +32,11 @@ describe('registration order status', () => {
     it('keeps failed registration distinct from failed payment', () => {
         render(<Show order={{ ...order, status: 'failed' }} />);
         expect(screen.getByText(/Your payment is safe. This order requires review./)).toBeInTheDocument();
+    });
+
+    it('shows renewal-specific customer copy', () => {
+        render(<Show order={{ ...order, type: 'domain_renewal', status: 'provisioning', requires_reconciliation: true }} />);
+        expect(screen.getByText("We're confirming the renewal status with the registrar.")).toBeInTheDocument();
+        expect(screen.getByText('Renewal period')).toBeInTheDocument();
     });
 });

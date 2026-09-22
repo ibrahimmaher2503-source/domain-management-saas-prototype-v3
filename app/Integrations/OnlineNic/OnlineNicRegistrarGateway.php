@@ -15,6 +15,8 @@ use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\RenewalResult;
+use App\Domain\Registrar\DTOs\RenewDomainData;
 use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Commands\CheckContactCommand;
@@ -25,6 +27,7 @@ use App\Integrations\OnlineNic\Commands\GetAuthCodeCommand;
 use App\Integrations\OnlineNic\Commands\GetDomainPriceCommand;
 use App\Integrations\OnlineNic\Commands\InfoDomainCommand;
 use App\Integrations\OnlineNic\Commands\InfoDomainExtraCommand;
+use App\Integrations\OnlineNic\Commands\RenewDomainCommand;
 use App\Integrations\OnlineNic\Commands\UpdateDomainDnsCommand;
 use App\Integrations\OnlineNic\Commands\UpdateDomainStatusCommand;
 use App\Integrations\OnlineNic\Exceptions\InvalidProviderResponse;
@@ -55,7 +58,12 @@ final class OnlineNicRegistrarGateway implements RegistrarGateway
     public function getDomainPrice(DomainPriceQuery $query): DomainPrice
     {
         $this->client->ensureAuthenticated();
-        $response = $this->client->execute(new GetDomainPriceCommand($query->domain, $this->tlds->domainType($query->domain), $query->period));
+        $operation = match ($query->operation) {
+            'registration' => 'reg',
+            'renewal' => 'renew',
+            default => throw new \InvalidArgumentException('Unsupported domain price operation.'),
+        };
+        $response = $this->client->execute(new GetDomainPriceCommand($query->domain, $this->tlds->domainType($query->domain), $operation, $query->period));
         $amount = $response->data['price'] ?? null;
         if (! is_string($amount) || ! preg_match('/^\d+(?:\.\d{1,2})?$/', $amount)) {
             throw new InvalidProviderResponse('OnlineNIC returned an invalid domain price.', $response->code, $response->message);
@@ -96,6 +104,19 @@ final class OnlineNicRegistrarGateway implements RegistrarGateway
         }
 
         return new RegistrationResult($domain, $this->stringValue($response->data['reg_date'] ?? null), $this->stringValue($response->data['exp_date'] ?? null), $response->cltrid, $response->svtrid, $response->code, $response->message, $response->data);
+    }
+
+    public function renewDomain(RenewDomainData $data, string $cltrid): RenewalResult
+    {
+        $this->client->ensureAuthenticated();
+        $response = $this->client->execute(new RenewDomainCommand($data, $this->tlds->domainType($data->domain)), $cltrid);
+        $this->requireCompletedWrite($response, $cltrid);
+        $domain = $this->stringValue($response->data['domain'] ?? null);
+        if ($domain === null || strcasecmp($domain, $data->domain) !== 0) {
+            throw new ProviderAmbiguousResponse('OnlineNIC did not confirm the renewed domain.', $response->code, $response->message);
+        }
+
+        return new RenewalResult($domain, $this->stringValue($response->data['exDate'] ?? null), $response->cltrid, $response->svtrid, $response->code, $response->message);
     }
 
     public function getDomainInfo(string $domain): DomainInfo

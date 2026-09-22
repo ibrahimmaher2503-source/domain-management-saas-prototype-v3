@@ -2,7 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Jobs\ProvisionDomainRegistration;
+use App\Jobs\DispatchPaidOrderFulfillment;
+use App\Models\Domain;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
@@ -44,8 +45,34 @@ final class PaymobPaymentTest extends TestCase
         $this->postJson(route('payments.paymob.callback'), $payload)->assertOk();
         $this->assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'paid', 'provider_transaction_id' => '77']);
         $this->assertSame('paid', $order->fresh()->status);
-        Queue::assertPushed(ProvisionDomainRegistration::class, fn (ProvisionDomainRegistration $job) => $job->connection === 'database');
-        Queue::assertPushed(ProvisionDomainRegistration::class, 1);
+        Queue::assertPushed(DispatchPaidOrderFulfillment::class, fn (DispatchPaidOrderFulfillment $job) => $job->connection === 'database');
+        Queue::assertPushed(DispatchPaidOrderFulfillment::class, 1);
+    }
+
+    public function test_renewal_uses_the_same_paymob_flow_with_a_renewal_item(): void
+    {
+        Http::fake(['https://accept.paymob.com/v1/intention/' => Http::response(['id' => 'pi_test_1', 'intention_order_id' => 987, 'client_secret' => 'cs_test', 'status' => 'created'], 201)]);
+        [$user, $order] = $this->order();
+        $domain = Domain::create(['user_id' => $user->id, 'name' => 'example.com', 'tld' => 'com', 'provider' => 'onlinenic', 'status' => 'active', 'nameservers' => []]);
+        $order->update(['type' => 'domain_renewal', 'domain_id' => $domain->id]);
+
+        $this->actingAs($user)->post(route('orders.pay', $order))->assertRedirect();
+
+        Http::assertSent(fn ($request) => $request['items'][0]['name'] === 'Domain renewal: example.com' && $request['items'][0]['description'] === 'Domain renewal');
+    }
+
+    public function test_repeated_renewal_callback_dispatches_fulfillment_once(): void
+    {
+        [$user, $order] = $this->order();
+        $domain = Domain::create(['user_id' => $user->id, 'name' => 'example.com', 'tld' => 'com', 'provider' => 'onlinenic', 'status' => 'active', 'nameservers' => []]);
+        $order->update(['type' => 'domain_renewal', 'domain_id' => $domain->id]);
+        Payment::create(['user_id' => $user->id, 'order_id' => $order->id, 'provider' => 'paymob', 'status' => 'pending', 'amount' => '10.31', 'currency' => 'EGP', 'provider_order_id' => 987, 'provider_reference' => 'order-'.$order->id]);
+        $payload = $this->callbackPayload(true, false, 1031, 'EGP', 987, 77);
+
+        $this->postJson(route('payments.paymob.callback'), $payload)->assertOk();
+        $this->postJson(route('payments.paymob.callback'), $payload)->assertOk();
+
+        Queue::assertPushed(DispatchPaidOrderFulfillment::class, 1);
     }
 
     public function test_different_user_cannot_pay_and_paid_order_cannot_start(): void

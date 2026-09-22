@@ -12,6 +12,8 @@ use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Domain\Registrar\DTOs\OperationResult;
 use App\Domain\Registrar\DTOs\RegistrationResult;
+use App\Domain\Registrar\DTOs\RenewalResult;
+use App\Domain\Registrar\DTOs\RenewDomainData;
 use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Exceptions\ProviderAmbiguousResponse;
@@ -158,17 +160,42 @@ final class DomainSecurityTest extends TestCase
 final class SecurityFakeRegistrar implements RegistrarGateway
 {
     public ?bool $transferLocked = null;
+
     public string $writeMode = 'completed';
+
     public bool $reflectWriteInInfo = false;
+
     public int $authCalls = 0;
+
     /** @var list<TransferLockData> */
     public array $writes = [];
+
     public ?\Closure $beforeWrite = null;
 
-    public function checkDomain(CheckDomainData $data): DomainAvailability { throw new \LogicException; }
-    public function getDomainPrice(DomainPriceQuery $query): DomainPrice { throw new \LogicException; }
-    public function registerDomain(DomainRegistrationData $data, string $cltrid): RegistrationResult { throw new \LogicException; }
-    public function updateNameservers(UpdateNameserversData $data, string $cltrid): OperationResult { throw new \LogicException; }
+    public function checkDomain(CheckDomainData $data): DomainAvailability
+    {
+        throw new \LogicException;
+    }
+
+    public function getDomainPrice(DomainPriceQuery $query): DomainPrice
+    {
+        throw new \LogicException;
+    }
+
+    public function registerDomain(DomainRegistrationData $data, string $cltrid): RegistrationResult
+    {
+        throw new \LogicException;
+    }
+
+    public function renewDomain(RenewDomainData $data, string $cltrid): RenewalResult
+    {
+        throw new \LogicException;
+    }
+
+    public function updateNameservers(UpdateNameserversData $data, string $cltrid): OperationResult
+    {
+        throw new \LogicException;
+    }
 
     public function getDomainInfo(string $domain): DomainInfo
     {

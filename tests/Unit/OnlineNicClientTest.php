@@ -2,11 +2,14 @@
 
 namespace Tests\Unit;
 
+use App\Domain\Registrar\DTOs\DomainPriceQuery;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
+use App\Domain\Registrar\DTOs\RenewDomainData;
 use App\Domain\Registrar\DTOs\TransferLockData;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Commands\CreateDomainCommand;
 use App\Integrations\OnlineNic\Commands\GetAuthCodeCommand;
+use App\Integrations\OnlineNic\Commands\RenewDomainCommand;
 use App\Integrations\OnlineNic\Commands\UpdateDomainDnsCommand;
 use App\Integrations\OnlineNic\Commands\UpdateDomainStatusCommand;
 use App\Integrations\OnlineNic\Contracts\OnlineNicCommand;
@@ -47,6 +50,27 @@ final class OnlineNicClientTest extends TestCase
 
         $this->assertSame('CreateDomain', $command->action());
         $this->assertSame(['domaintype' => 0, 'mltype' => 0, 'domain' => 'example.com', 'period' => 2, 'dns' => ['ns1.example.net', 'ns2.example.net'], 'registrant' => 'r', 'tech' => 't', 'billing' => 'b', 'admin' => 'a', 'password' => 'password'], $command->payload());
+    }
+
+    public function test_renewal_commands_use_documented_operation_payload_and_checksum(): void
+    {
+        $command = new RenewDomainCommand(new RenewDomainData('example.com', 2), 0);
+        $auth = new OnlineNicAuthenticator('123', 'secret');
+
+        $this->assertSame('RenewDomain', $command->action());
+        $this->assertSame(['domaintype' => 0, 'domain' => 'example.com', 'period' => 2], $command->payload());
+        $this->assertSame(md5('123'.md5('secret').'tx'.'renewdomain'.'0'.'example.com'.'2'), $auth->requestChecksum('tx', $command->action(), $command->payload()));
+
+        $transport = new FakeOnlineNicTransport([
+            $this->response('Greeting'), $this->response('Logged in'),
+            $this->response('Price', '<data name="price">8.59</data>'),
+            $this->response('Renewed', '<data name="domain">example.com</data><data name="exDate">2029-09-22</data>'),
+        ]);
+        $gateway = new OnlineNicRegistrarGateway($this->client($transport), new OnlineNicTldResolver);
+        $this->assertSame('8.59', $gateway->getDomainPrice(new DomainPriceQuery('example.com', 'renewal', 2))->amount);
+        $this->assertSame('2029-09-22', $gateway->renewDomain(new RenewDomainData('example.com', 2), 'tx')->expiresAt);
+        $this->assertStringContainsString('<param name="op">renew</param>', $transport->writes[1]);
+        $this->assertStringContainsString('<action>RenewDomain</action>', $transport->writes[2]);
     }
 
     public function test_update_nameservers_uses_documented_action_payload_and_checksum(): void

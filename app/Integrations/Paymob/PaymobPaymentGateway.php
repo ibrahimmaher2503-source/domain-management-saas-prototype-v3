@@ -29,11 +29,16 @@ final class PaymobPaymentGateway implements PaymentGateway
         }
 
         $amount = Money::toMinorUnits((string) $order->customer_price);
+        [$itemName, $description] = match ($order->type) {
+            'domain_registration' => ['Domain registration: '.$order->domain, 'Domain registration'],
+            'domain_renewal' => ['Domain renewal: '.$order->domain, 'Domain renewal'],
+            default => throw new PaymentCreationFailed('This order type cannot be paid.'),
+        };
         $data = $this->client->createIntention([
             'amount' => $amount,
             'currency' => strtoupper($order->currency),
             'payment_methods' => [$integrationId],
-            'items' => [['name' => 'Domain registration: '.$order->domain, 'amount' => $amount, 'description' => 'Domain registration', 'quantity' => 1]],
+            'items' => [['name' => $itemName, 'amount' => $amount, 'description' => $description, 'quantity' => 1]],
             'billing_data' => $billing,
             'special_reference' => $reference,
             'expiration' => (int) config('paymob.payment_expiration', 3600),

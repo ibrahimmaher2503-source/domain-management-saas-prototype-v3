@@ -6,7 +6,7 @@ use App\Integrations\OnlineNic\Contracts\OnlineNicCommand;
 
 final readonly class GetDomainPriceCommand implements OnlineNicCommand
 {
-    public function __construct(private string $domain, private int $domainType, private int $period) {}
+    public function __construct(private string $domain, private int $domainType, private string $operation, private int $period) {}
 
     public function category(): string
     {
@@ -20,6 +20,6 @@ final readonly class GetDomainPriceCommand implements OnlineNicCommand
 
     public function payload(): array
     {
-        return ['domaintype' => $this->domainType, 'domain' => $this->domain, 'op' => 'reg', 'period' => $this->period];
+        return ['domaintype' => $this->domainType, 'domain' => $this->domain, 'op' => $this->operation, 'period' => $this->period];
     }
 }

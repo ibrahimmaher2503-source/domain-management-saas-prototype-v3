@@ -19,7 +19,7 @@ Every request has `category`, `action`, zero or more `params`, unique `cltrid`, 
 | Domains | `CheckDomain` | `domaintype`, `domain`; availability and lookup key | read | IDN must be Punycode. |
 | Domains | `InfoDomain` | `domaintype`, `domain`; dates, DNS, contacts, password/status data | read-sensitive | Auth/password material must be redacted and protected. |
 | Domains | `CreateDomain` | `domaintype`, `mltype`, `domain`, `period`, DNS, contact IDs, password; dates | write-billing | TLD-specific required contacts and checksum composition. |
-| Domains | `RenewDomain` | `domaintype`, `domain`, `period` | write-billing | Total term must satisfy the TLD rules. |
+| Domains | `RenewDomain` | `domaintype`, `domain`, `period` | write-billing | Enabled for manual `.com` renewal, 1–10 years; no blind retries, reconcile ambiguity through `InfoDomain`. |
 | Domains | `DeleteDomain` | `domaintype`, `domain` | destructive write | Provider documents quota/eligibility limits for some TLDs. |
 | Domains | `UpdateDomainStatus` | `domaintype`, `domain`, `addstatus` or `remstatus` | write | `clientTransferProhibited` is added with `addstatus` and removed with `remstatus`; the source describes both operations and names `remstatus` explicitly. |
 | Domains | `UpdateDomainExtra` | `domaintype`, `domain`, value-added service field | write | Provider-specific VAS; do not assume auto-renew/ID Shield semantics without mapping. |
@@ -28,7 +28,7 @@ Every request has `category`, `action`, zero or more `params`, unique `cltrid`, 
 | Domains | `InfoDomainExtra` | `domaintype`, `domain`; registry `status` and VAS data | read | The documented `status` is used to normalize `clientTransferProhibited`; a missing status remains unknown. |
 | Domains | `GetAuthcode` | `domaintype`, `domain`; password/auth code | read-sensitive | Never show in logs or broad admin listings. |
 | Domains | `GetTmNotice` | TLD/domain lookup fields | read | Trademark notice data; exact field rules are TLD-specific. |
-| Domains | `GetDomainPrice` | `domaintype`, `period`, `op` (`reg`, `renew`, `transfer`), lookup key | read-billing | Returns wholesale/retail price and currency-related fields. |
+| Domains | `GetDomainPrice` | `domaintype`, `domain`, `op`, `period` | read-billing | Application operations map `registration → reg` and `renewal → renew`; returns current provider price. |
 | Domains | `UpdateXxxMemberId` | TLD/member ID fields | write | Template action in source; exact supported TLDs require confirmation. |
 | Hosts | `CheckHost` | `domaintype`, `hostname`; `avail` | read | Checks registered host object. |
 | Hosts | `InfoHost` | `domaintype`, `hostname`; IP addresses | read | Main domain must be in the account. |

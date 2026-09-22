@@ -6,7 +6,7 @@ This is a source-grounded planning matrix, not a promise that every TLD supports
 |---|---|---|---|
 | Availability | Yes | `domaintype`, Punycode domain | Enable after provider integration. |
 | Registration | Yes | period, 2+ DNS values, contact IDs, domain password; TLD-specific checksum/fields | Enable per TLD policy. |
-| Renewal | Yes | period and TLD term rules | Enable per TLD policy. |
+| Renewal | Yes for manual `.com` renewal | `GetDomainPrice op=renew`; `RenewDomain` documents 1–10 years for most domains | Paid order flow with bounded read-only ambiguity reconciliation. |
 | Domain info | Yes | domain and type | Enable, with sensitive-field redaction. |
 | Registrar nameserver assignment | Yes | 2–6 nameserver values | Enable. |
 | Registered host/glue objects | Yes | hostname, IP addresses; parent domain in account | Separate advanced capability. |

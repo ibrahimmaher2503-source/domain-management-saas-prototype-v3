@@ -19,7 +19,7 @@ Registrar contact IDs for registration are platform-owned backend configuration.
 ## Future registrar capabilities (not implemented)
 
 ```text
-renewDomain(RenewDomainData): RenewalResult
+renewDomain(RenewDomainData, cltrid): RenewalResult
 getTransferStatus(TransferLookup): TransferStatus
 requestTransfer(TransferRequestData): TransferResult
 cancelTransfer(TransferLookup): OperationResult

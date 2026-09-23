@@ -20,7 +20,9 @@ use App\Domain\Registrar\DTOs\TransferRequestResult;
 use App\Domain\Registrar\DTOs\TransferStatusResult;
 use App\Domain\Registrar\DTOs\UpdateNameserversData;
 use App\Integrations\OnlineNic\Exceptions\InvalidProviderResponse;
+use App\Integrations\OnlineNic\OnlineNicSettings;
 use App\Models\Domain;
+use App\Models\IntegrationSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -100,6 +102,22 @@ final class AdminDomainOnboardingTest extends TestCase
         $this->actingAs($admin)->post(route('admin.domains.import.store'), ['domain' => 'external.com', 'provider' => 'onlinenic', 'customer_id' => $other->id])->assertSessionHasErrors('domain');
         $this->assertDatabaseMissing('domains', ['name' => 'external.com']);
         $this->assertSame(['getDomainInfo'], $gateway->calls);
+    }
+
+    public function test_admin_updates_encrypted_onlinenic_settings_without_returning_the_password(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $this->actingAs($admin)->put(route('admin.providers.onlinenic.update'), [
+            'host' => 'ote.onlinenic.com', 'port' => 30009, 'client_id' => 'account-1', 'password' => 'secret-password',
+            'account_currency' => 'USD', 'customer_billing_currency' => 'USD', 'registrant_contact_id' => 'r1',
+            'admin_contact_id' => 'a1', 'tech_contact_id' => 't1', 'billing_contact_id' => 'b1',
+        ])->assertRedirect();
+
+        $stored = IntegrationSetting::query()->where('provider', 'onlinenic')->where('key', 'password')->firstOrFail();
+        $this->assertNotSame('secret-password', $stored->getRawOriginal('value'));
+        $this->assertSame('secret-password', $stored->value);
+        $this->assertSame('secret-password', app(OnlineNicSettings::class)->value('password'));
+        $this->assertDatabaseHas('admin_audit_logs', ['action' => 'provider.settings.updated', 'resource_type' => 'provider']);
     }
 }
 

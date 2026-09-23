@@ -6,6 +6,7 @@ use App\Domain\Billing\DTOs\PaymentBillingData;
 use App\Domain\Domains\Exceptions\CheckoutUnavailable;
 use App\Domain\Registrar\Contracts\RegistrarGateway;
 use App\Domain\Registrar\DTOs\DomainPriceQuery;
+use App\Integrations\OnlineNic\OnlineNicSettings;
 use App\Models\Domain;
 use App\Models\Order;
 use App\Models\Transfer;
@@ -28,8 +29,9 @@ final class DomainTransferService
         if ($user->transfers()->where('domain', $domain)->whereIn('status', ['awaiting_payment', 'paid', 'pending', 'processing', 'action_required', 'ambiguous'])->exists()) {
             throw new CheckoutUnavailable('An active transfer already exists for this domain.');
         }
-        $currency = strtoupper((string) config('onlinenic.account_currency', ''));
-        if ($currency === '' || $currency !== strtoupper((string) config('onlinenic.customer_billing_currency', ''))) {
+        $settings = app(OnlineNicSettings::class);
+        $currency = strtoupper((string) $settings->value('account_currency'));
+        if ($currency === '' || $currency !== strtoupper((string) $settings->value('customer_billing_currency'))) {
             throw new CheckoutUnavailable('Transfer checkout is unavailable until billing currency is configured.');
         }
         $provider = $this->registrar->getDomainPrice(new DomainPriceQuery($domain, 'transfer', 1));

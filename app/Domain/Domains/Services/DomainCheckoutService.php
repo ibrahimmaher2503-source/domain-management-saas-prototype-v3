@@ -8,6 +8,7 @@ use App\Domain\Domains\Exceptions\CheckoutUnavailable;
 use App\Domain\Registrar\Contracts\RegistrarGateway;
 use App\Domain\Registrar\DTOs\CheckDomainData;
 use App\Domain\Registrar\DTOs\DomainPriceQuery;
+use App\Integrations\OnlineNic\OnlineNicSettings;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +24,9 @@ final class DomainCheckoutService
         if (! $capability->supportsPeriod($period)) {
             throw new CheckoutUnavailable('This registration period is not available for the selected TLD.');
         }
-        $currency = (string) config('onlinenic.account_currency', '');
-        $customerCurrency = (string) config('onlinenic.customer_billing_currency', '');
+        $settings = app(OnlineNicSettings::class);
+        $currency = (string) $settings->value('account_currency');
+        $customerCurrency = (string) $settings->value('customer_billing_currency');
         if ($currency === '' || $customerCurrency === '' || strtoupper($currency) !== strtoupper($customerCurrency)) {
             throw new CheckoutUnavailable('Checkout is temporarily unavailable until billing currency is configured.');
         }

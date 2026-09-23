@@ -7,6 +7,7 @@ use App\Domain\Registrar\DTOs\CheckDomainData;
 use App\Domain\Registrar\DTOs\DomainRegistrationData;
 use App\Integrations\OnlineNic\Exceptions\OnlineNicException;
 use App\Integrations\OnlineNic\Exceptions\ProviderAmbiguousResponse;
+use App\Integrations\OnlineNic\OnlineNicSettings;
 use App\Integrations\OnlineNic\OnlineNicTransactionIdGenerator;
 use App\Models\Domain;
 use App\Models\Order;
@@ -51,10 +52,10 @@ final class ProvisionDomainRegistration implements ShouldQueue
         }
 
         $contactIds = [
-            'registrant' => trim((string) config('onlinenic.registrant_contact_id')),
-            'administrative' => trim((string) config('onlinenic.admin_contact_id')),
-            'technical' => trim((string) config('onlinenic.tech_contact_id')),
-            'billing' => trim((string) config('onlinenic.billing_contact_id')),
+            'registrant' => trim((string) app(OnlineNicSettings::class)->value('registrant_contact_id')),
+            'administrative' => trim((string) app(OnlineNicSettings::class)->value('admin_contact_id')),
+            'technical' => trim((string) app(OnlineNicSettings::class)->value('tech_contact_id')),
+            'billing' => trim((string) app(OnlineNicSettings::class)->value('billing_contact_id')),
         ];
         foreach ($contactIds as $id) {
             if ($id === '' || strlen($id) > 16) {

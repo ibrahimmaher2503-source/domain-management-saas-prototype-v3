@@ -8,6 +8,7 @@ use App\Domain\Domains\Services\ImportDomainForCustomer;
 use App\Domain\Registrar\Contracts\RegistrarGateway;
 use App\Http\Controllers\Controller;
 use App\Integrations\OnlineNic\OnlineNicAccountService;
+use App\Integrations\OnlineNic\OnlineNicSettings;
 use App\Models\AdminAuditLog;
 use App\Models\Domain;
 use App\Models\Order;
@@ -159,6 +160,26 @@ final class AdminController extends Controller
         }
 
         return Inertia::render('Admin/Providers', $data);
+    }
+
+    public function updateProviderSettings(Request $request, OnlineNicSettings $settings): RedirectResponse
+    {
+        $data = $request->validate([
+            'host' => ['required', 'string', 'max:255', 'regex:/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i'],
+            'port' => ['required', 'integer', 'between:1,65535'],
+            'client_id' => ['required', 'string', 'max:255'],
+            'password' => ['nullable', 'string', 'max:255'],
+            'account_currency' => ['required', 'string', 'size:3'],
+            'customer_billing_currency' => ['required', 'string', 'size:3'],
+            'registrant_contact_id' => ['required', 'string', 'max:255'],
+            'admin_contact_id' => ['required', 'string', 'max:255'],
+            'tech_contact_id' => ['required', 'string', 'max:255'],
+            'billing_contact_id' => ['required', 'string', 'max:255'],
+        ]);
+        $settings->update($data);
+        AdminAuditLog::create(['admin_user_id' => $request->user()->id, 'action' => 'provider.settings.updated', 'resource_type' => 'provider', 'resource_id' => null, 'safe_metadata' => ['provider' => 'onlinenic', 'secret_changed' => filled($data['password'] ?? null)]]);
+
+        return back()->with('status', 'OnlineNIC settings saved.');
     }
 
     public function pricing(Request $request, RegistrarGateway $registrar): Response

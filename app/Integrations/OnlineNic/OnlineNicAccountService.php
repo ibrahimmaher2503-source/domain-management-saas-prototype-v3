@@ -10,7 +10,7 @@ final class OnlineNicAccountService
 {
     private const CACHE_KEY = 'admin.providers.onlinenic.balance';
 
-    public function __construct(private readonly OnlineNicClient $client) {}
+    public function __construct(private readonly OnlineNicClient $client, private readonly ?OnlineNicSettings $settings = null) {}
 
     /** @return array{amount:string,currency:string,checked_at:string} */
     public function balance(bool $refresh = false): array
@@ -27,7 +27,7 @@ final class OnlineNicAccountService
                 throw new InvalidProviderResponse('OnlineNIC returned an invalid balance.');
             }
 
-            return ['amount' => $amount, 'currency' => (string) config('onlinenic.account_currency', ''), 'checked_at' => now()->toIso8601String()];
+            return ['amount' => $amount, 'currency' => (string) ($this->settings ?? app(OnlineNicSettings::class))->value('account_currency'), 'checked_at' => now()->toIso8601String()];
         });
     }
 }

@@ -7,6 +7,7 @@ use App\Domain\Domains\DTOs\DomainRenewalQuote;
 use App\Domain\Domains\Exceptions\CheckoutUnavailable;
 use App\Domain\Registrar\Contracts\RegistrarGateway;
 use App\Domain\Registrar\DTOs\DomainPriceQuery;
+use App\Integrations\OnlineNic\OnlineNicSettings;
 use App\Models\Domain;
 use App\Models\Order;
 use App\Models\User;
@@ -19,8 +20,9 @@ final class DomainRenewalQuoteService
     public function quote(User $user, Domain $domain, int $period): DomainRenewalQuote
     {
         $this->assertEligible($user, $domain, $period);
-        $currency = strtoupper((string) config('onlinenic.account_currency', ''));
-        $customerCurrency = strtoupper((string) config('onlinenic.customer_billing_currency', ''));
+        $settings = app(OnlineNicSettings::class);
+        $currency = strtoupper((string) $settings->value('account_currency'));
+        $customerCurrency = strtoupper((string) $settings->value('customer_billing_currency'));
         if ($currency === '' || $customerCurrency === '' || $currency !== $customerCurrency) {
             throw new CheckoutUnavailable('Renewal is temporarily unavailable until billing currency is configured.');
         }

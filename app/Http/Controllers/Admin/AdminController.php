@@ -7,6 +7,7 @@ use App\Domain\Domains\Exceptions\DomainImportException;
 use App\Domain\Domains\Services\ImportDomainForCustomer;
 use App\Domain\Registrar\Contracts\RegistrarGateway;
 use App\Http\Controllers\Controller;
+use App\Integrations\IntegrationSettings;
 use App\Integrations\OnlineNic\OnlineNicAccountService;
 use App\Integrations\OnlineNic\OnlineNicSettings;
 use App\Models\AdminAuditLog;
@@ -180,6 +181,33 @@ final class AdminController extends Controller
         AdminAuditLog::create(['admin_user_id' => $request->user()->id, 'action' => 'provider.settings.updated', 'resource_type' => 'provider', 'resource_id' => null, 'safe_metadata' => ['provider' => 'onlinenic', 'secret_changed' => filled($data['password'] ?? null)]]);
 
         return back()->with('status', 'OnlineNIC settings saved.');
+    }
+
+    public function updatePaymobSettings(Request $request, IntegrationSettings $settings): RedirectResponse
+    {
+        $data = $request->validate([
+            'base_url' => ['required', 'url', 'max:255'], 'secret_key' => ['nullable', 'string', 'max:500'], 'public_key' => ['nullable', 'string', 'max:500'],
+            'hmac_secret' => ['nullable', 'string', 'max:500'], 'card_integration_id' => ['required', 'integer', 'min:1'], 'mode' => ['required', Rule::in(['test', 'live'])],
+            'payment_expiration' => ['required', 'integer', 'min:60', 'max:86400'], 'notification_url' => ['nullable', 'url', 'max:500'], 'redirection_url' => ['nullable', 'url', 'max:500'],
+        ]);
+        $settings->update('paymob', $data, ['secret_key', 'public_key', 'hmac_secret']);
+        $this->auditProviderSettings($request, 'paymob', $data);
+
+        return back()->with('status', 'Paymob settings saved.');
+    }
+
+    public function updateCloudflareSettings(Request $request, IntegrationSettings $settings): RedirectResponse
+    {
+        $data = $request->validate(['api_base' => ['required', 'url', 'max:255'], 'api_token' => ['nullable', 'string', 'max:500'], 'account_id' => ['required', 'string', 'max:255']]);
+        $settings->update('cloudflare', $data, ['api_token']);
+        $this->auditProviderSettings($request, 'cloudflare', $data);
+
+        return back()->with('status', 'Cloudflare settings saved.');
+    }
+
+    private function auditProviderSettings(Request $request, string $provider, array $data): void
+    {
+        AdminAuditLog::create(['admin_user_id' => $request->user()->id, 'action' => 'provider.settings.updated', 'resource_type' => 'provider', 'resource_id' => null, 'safe_metadata' => ['provider' => $provider, 'secret_changed' => collect(['secret_key', 'public_key', 'hmac_secret', 'api_token'])->some(fn (string $key): bool => filled($data[$key] ?? null))]]);
     }
 
     public function pricing(Request $request, RegistrarGateway $registrar): Response

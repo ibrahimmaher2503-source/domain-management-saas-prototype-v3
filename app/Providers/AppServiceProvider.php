@@ -7,6 +7,7 @@ use App\Domain\Dns\Contracts\DnsProvider;
 use App\Domain\Registrar\Contracts\RegistrarGateway;
 use App\Domain\Ssl\Contracts\SslProvider;
 use App\Integrations\Cloudflare\CloudflareDnsProvider;
+use App\Integrations\IntegrationSettings;
 use App\Integrations\OnlineNic\OnlineNicAuthenticator;
 use App\Integrations\OnlineNic\OnlineNicClient;
 use App\Integrations\OnlineNic\OnlineNicRegistrarGateway;
@@ -47,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        app(IntegrationSettings::class)->apply();
         if ($this->app->environment('production') && str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }

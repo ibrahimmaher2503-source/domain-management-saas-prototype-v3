@@ -4,6 +4,7 @@ namespace App\Domain\Admin;
 
 use App\Domain\Registrar\Contracts\RegistrarGateway;
 use App\Domain\Registrar\DTOs\DomainPriceQuery;
+use App\Integrations\IntegrationSettings;
 use App\Integrations\OnlineNic\OnlineNicSettings;
 use App\Models\DnsOperation;
 use App\Models\Domain;
@@ -22,7 +23,7 @@ final class AdminQueryService
 {
     private const PAGE_SIZE = 25;
 
-    public function __construct(private readonly OnlineNicSettings $onlineNicSettings) {}
+    public function __construct(private readonly OnlineNicSettings $onlineNicSettings, private readonly IntegrationSettings $integrationSettings) {}
 
     public function overview(): array
     {
@@ -202,7 +203,22 @@ final class AdminQueryService
             'onlinenic' => ['configured' => filled($this->onlineNicSettings->value('client_id')) && filled($this->onlineNicSettings->value('password')), 'environment' => config('app.env'), 'currency' => $this->onlineNicSettings->value('account_currency'), 'contacts_configured' => collect(['registrant_contact_id', 'admin_contact_id', 'tech_contact_id', 'billing_contact_id'])->every(fn (string $key): bool => filled($this->onlineNicSettings->value($key))), 'last_success' => RegistrarOperation::where('provider', 'onlinenic')->where('status', 'completed')->max('completed_at')],
             'paymob' => ['configured' => $this->configured(['paymob.secret_key', 'paymob.public_key', 'paymob.hmac_secret']), 'mode' => config('paymob.mode'), 'integration_configured' => filled(config('paymob.card_integration_id')), 'last_success' => Payment::where('provider', 'paymob')->where('status', 'paid')->max('paid_at')],
             'cloudflare' => ['configured' => $this->configured(['cloudflare.api_token']), 'account_configured' => filled(config('cloudflare.account_id')), 'token_configured' => filled(config('cloudflare.api_token')), 'last_success' => DB::table('dns_zones')->where('status', 'active')->max('provider_synced_at')],
-        ], 'settings' => $this->onlineNicSettings->form()];
+        ], 'settings' => [
+            'onlinenic' => $this->onlineNicSettings->form(),
+            'paymob' => $this->providerForm('paymob', config('paymob'), ['secret_key', 'public_key', 'hmac_secret']),
+            'cloudflare' => $this->providerForm('cloudflare', config('cloudflare'), ['api_token']),
+        ]];
+    }
+
+    private function providerForm(string $provider, array $values, array $secrets): array
+    {
+        $resolved = $this->integrationSettings->all($provider, $values);
+        foreach ($secrets as $secret) {
+            $resolved[$secret.'_configured'] = filled($resolved[$secret] ?? null);
+            unset($resolved[$secret]);
+        }
+
+        return $resolved;
     }
 
     public function pricing(Request $request, RegistrarGateway $registrar): array

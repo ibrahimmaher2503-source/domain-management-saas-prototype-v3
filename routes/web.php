@@ -94,6 +94,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified', 'admin']
     Route::post('/reconcile/{type}/{id}', [AdminActionController::class, 'reconcile'])->middleware('throttle:10,1')->name('reconcile');
     Route::get('/providers', [AdminController::class, 'providers'])->name('providers');
     Route::put('/providers/onlinenic', [AdminController::class, 'updateProviderSettings'])->name('providers.onlinenic.update');
+    Route::put('/providers/paymob', [AdminController::class, 'updatePaymobSettings'])->name('providers.paymob.update');
+    Route::put('/providers/cloudflare', [AdminController::class, 'updateCloudflareSettings'])->name('providers.cloudflare.update');
     Route::post('/providers/onlinenic/balance', [AdminActionController::class, 'refreshBalance'])->middleware('throttle:5,1')->name('providers.balance');
     Route::get('/pricing', [AdminController::class, 'pricing'])->name('pricing');
 });

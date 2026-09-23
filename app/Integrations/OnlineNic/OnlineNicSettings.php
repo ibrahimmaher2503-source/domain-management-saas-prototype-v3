@@ -2,8 +2,7 @@
 
 namespace App\Integrations\OnlineNic;
 
-use App\Models\IntegrationSetting;
-use Illuminate\Database\QueryException;
+use App\Integrations\IntegrationSettings;
 
 final class OnlineNicSettings
 {
@@ -12,15 +11,11 @@ final class OnlineNicSettings
         'registrant_contact_id', 'admin_contact_id', 'tech_contact_id', 'billing_contact_id',
     ];
 
+    public function __construct(private readonly IntegrationSettings $store) {}
+
     public function all(): array
     {
-        try {
-            $values = IntegrationSetting::query()->where('provider', 'onlinenic')->pluck('value', 'key')->all();
-        } catch (QueryException) {
-            $values = [];
-        }
-
-        return array_replace(config('onlinenic'), array_intersect_key($values, array_flip(self::KEYS)));
+        return array_replace(config('onlinenic'), array_intersect_key($this->store->all('onlinenic', config('onlinenic')), array_flip(self::KEYS)));
     }
 
     public function value(string $key): mixed
@@ -48,12 +43,6 @@ final class OnlineNicSettings
 
     public function update(array $values): void
     {
-        foreach (array_intersect_key($values, array_flip(self::KEYS)) as $key => $value) {
-            if ($key === 'password' && blank($value)) {
-                continue;
-            }
-
-            IntegrationSetting::updateOrCreate(['provider' => 'onlinenic', 'key' => $key], ['value' => (string) $value]);
-        }
+        $this->store->update('onlinenic', array_intersect_key($values, array_flip(self::KEYS)), ['password']);
     }
 }

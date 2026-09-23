@@ -119,6 +119,21 @@ final class AdminDomainOnboardingTest extends TestCase
         $this->assertSame('secret-password', app(OnlineNicSettings::class)->value('password'));
         $this->assertDatabaseHas('admin_audit_logs', ['action' => 'provider.settings.updated', 'resource_type' => 'provider']);
     }
+
+    public function test_admin_updates_paymob_and_cloudflare_settings_without_exposing_secrets(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $this->actingAs($admin)->put(route('admin.providers.paymob.update'), [
+            'base_url' => 'https://accept.paymob.com', 'secret_key' => 'paymob-secret', 'public_key' => 'paymob-public', 'hmac_secret' => 'paymob-hmac',
+            'card_integration_id' => 123, 'mode' => 'test', 'payment_expiration' => 3600, 'notification_url' => 'https://example.com/payments/callback', 'redirection_url' => 'https://example.com/payments/return',
+        ])->assertRedirect();
+        $this->actingAs($admin)->put(route('admin.providers.cloudflare.update'), ['api_base' => 'https://api.cloudflare.com/client/v4', 'api_token' => 'cloudflare-secret', 'account_id' => 'account-1'])->assertRedirect();
+
+        $this->assertNotSame('paymob-secret', IntegrationSetting::where('provider', 'paymob')->where('key', 'secret_key')->firstOrFail()->getRawOriginal('value'));
+        $this->assertNotSame('cloudflare-secret', IntegrationSetting::where('provider', 'cloudflare')->where('key', 'api_token')->firstOrFail()->getRawOriginal('value'));
+        $this->assertDatabaseHas('integration_settings', ['provider' => 'paymob', 'key' => 'card_integration_id']);
+        $this->assertDatabaseHas('integration_settings', ['provider' => 'cloudflare', 'key' => 'account_id']);
+    }
 }
 
 final class ImportReadOnlyGateway implements RegistrarGateway
